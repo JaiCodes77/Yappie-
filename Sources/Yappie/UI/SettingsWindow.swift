@@ -17,16 +17,10 @@ struct SettingsWindow: View {
                             TransportKey(
                                 title: key.displayName,
                                 isEngaged: settings.pushToTalkKey == key,
-                                engagedColor: DS.Color.ink
+                                engagedColor: DS.Color.copper
                             ) {
                                 settings.pushToTalkKey = key
                                 controller.reloadHotkey()
-                            }
-                            .background {
-                                if settings.pushToTalkKey == key {
-                                    RoundedRectangle(cornerRadius: DS.Radius.control)
-                                        .fill(DS.Color.selection)
-                                }
                             }
                         }
                     }
@@ -41,15 +35,9 @@ struct SettingsWindow: View {
                             TransportKey(
                                 title: choice == .apple ? "Apple" : "Parakeet",
                                 isEngaged: settings.engine == choice,
-                                engagedColor: DS.Color.ink
+                                engagedColor: DS.Color.copper
                             ) {
                                 settings.engine = choice
-                            }
-                            .background {
-                                if settings.engine == choice {
-                                    RoundedRectangle(cornerRadius: DS.Radius.control)
-                                        .fill(DS.Color.selection)
-                                }
                             }
                         }
                     }
@@ -71,7 +59,7 @@ struct SettingsWindow: View {
             }
             .padding(DS.Space.panel)
         }
-        .frame(width: 580, height: 460)
+        .frame(width: DS.Size.settingsWidth, height: DS.Size.settingsHeight)
     }
 
     private func panel<Content: View>(

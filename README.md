@@ -171,6 +171,14 @@ The first Apple run for a locale may pause while the OS installs speech assets.
 
 ---
 
+## Look
+
+Cool limestone chrome, an **amber phosphor page** where transcripts live, copper for
+selection. Red is recording and nothing else. The HUD uses the same phosphor glass and
+never takes focus.
+
+---
+
 ## Architecture
 
 ```

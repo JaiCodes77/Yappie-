@@ -277,7 +277,7 @@ struct DictionaryEditor: View {
             HStack(spacing: DS.Space.snug) {
                 Spacer()
                 TransportKey(title: "Cancel") { dismiss() }
-                TransportKey(title: "Save", isEngaged: isValid, engagedColor: DS.Color.ink) {
+                TransportKey(title: "Save", isEngaged: isValid, engagedColor: DS.Color.copper) {
                     guard isValid else { return }
                     onSave(draft)
                     dismiss()
@@ -342,14 +342,9 @@ struct DictionaryEditor: View {
                 TransportKey(
                     title: candidate == .term ? "Term" : "Correction",
                     isEngaged: kind == candidate,
-                    engagedColor: DS.Color.ink
+                    engagedColor: DS.Color.copper
                 ) {
                     withAnimation(DS.Motion.panel) { kind = candidate }
-                }
-                .background {
-                    if kind == candidate {
-                        RoundedRectangle(cornerRadius: DS.Radius.control).fill(DS.Color.selection)
-                    }
                 }
             }
         }

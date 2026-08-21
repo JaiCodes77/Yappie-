@@ -80,15 +80,13 @@ invisible to SwiftUI's state graph. Don't "clean that up" into `@State`.
 and material token. **Views must not contain literal values.** If a component needs a number
 that isn't a token, add the token rather than inlining it.
 
-The direction is 1980s field recorders — Sony TC-D5, Marantz PMD, Nakamichi, Braun. Silver
-face in light appearance, black face in dark. Two rules that are not negotiable:
+The direction is a **copy desk for speech**: cool limestone chrome, an amber phosphor page
+where transcripts live, copper for selection. Two rules that are not negotiable:
 
 - **Red means recording.** Nothing else in the app is red.
-- **Amber and green are instrumentation only** — level meters, never UI chrome.
+- **The HUD never takes focus.** It is a non-activating panel.
 
-Explicitly ruled out: neon, vaporwave, synthwave, purple/pink gradients, glowing text, chrome
-lettering, grid horizons. There are **no gradients anywhere**; depth comes from flat panels,
-hairline bevels and procedurally-drawn brushed grain.
+Ruled out: cassette-deck pastiche, AI-SaaS purple, default SwiftUI gray, neon, glowing text.
 
 ---
 

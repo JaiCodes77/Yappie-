@@ -2,12 +2,10 @@ import YappieDictionary
 import AppKit
 import SwiftUI
 
-/// The app's main window — the front panel of the unit.
+/// The app's main window.
 ///
-/// Laid out the way a deck is: transport and meter across the top on the panel itself, then
-/// a recessed well below holding whichever section is selected. The section selector is a
-/// row of keys, not a segmented control, because everything else here is a physical control
-/// and one piece of stock UI would give the whole thing away.
+/// Transport across the top, then the amber phosphor page holding transcripts or the
+/// dictionary. The page is the product: that's where spoken words land.
 struct MainWindow: View {
     @Bindable var controller: DictationController
     @State private var store = DictionaryStore.shared
@@ -44,7 +42,7 @@ struct MainWindow: View {
             }
             .padding(DS.Space.roomy)
         }
-        .frame(minWidth: 720, minHeight: 520)
+        .frame(minWidth: DS.Size.mainMinWidth, minHeight: DS.Size.mainMinHeight)
         .sheet(item: Binding(
             get: { store.editorRequest },
             set: { store.editorRequest = $0 }
@@ -62,19 +60,12 @@ struct MainWindow: View {
                 TransportKey(
                     title: candidate.title,
                     isEngaged: section == candidate,
-                    engagedColor: DS.Color.ink
+                    engagedColor: DS.Color.copper
                 ) {
                     withAnimation(DS.Motion.panel) { section = candidate }
                 }
-                .background {
-                    if section == candidate {
-                        RoundedRectangle(cornerRadius: DS.Radius.control)
-                            .fill(DS.Color.selection)
-                    }
-                }
             }
             Spacer()
-            Vents(count: 8)
         }
     }
 }
@@ -116,13 +107,13 @@ private struct TransportPanel: View {
             }
 
             VStack(alignment: .leading, spacing: DS.Space.tight) {
-                Silkscreen(text: "Level")
+                Silkscreen(text: "Voice")
                 VUMeter(level: controller.level, isActive: isRecording)
-                    .frame(width: 168, height: 54)
+                    .frame(width: DS.Size.meterWidth, height: DS.Size.meterHeight)
             }
 
             VStack(alignment: .leading, spacing: DS.Space.tight) {
-                Silkscreen(text: "Counter")
+                Silkscreen(text: "Time")
                 DeckWindow {
                     Readout(text: counterText, large: true)
                         .padding(.horizontal, DS.Space.base)
@@ -131,11 +122,6 @@ private struct TransportPanel: View {
             }
 
             Spacer()
-
-            VStack(alignment: .trailing, spacing: DS.Space.snug) {
-                Screw()
-                Screw()
-            }
         }
         .padding(DS.Space.roomy)
         .background(BrushedPanel())
@@ -181,7 +167,9 @@ private struct TranscriptionList: View {
             if runs.isEmpty {
                 EmptyPanel(
                     label: store.runs.isEmpty ? "No recordings" : "No matches",
-                    detail: store.runs.isEmpty ? "Press Record to start." : "Try a different search."
+                    detail: store.runs.isEmpty
+                        ? "Hold \(Settings.shared.pushToTalkKey.displayName) and talk, or press Record."
+                        : "Try a different search."
                 )
             } else {
                 ScrollView {

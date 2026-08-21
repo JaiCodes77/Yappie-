@@ -10,7 +10,7 @@ import SwiftUI
 final class HUDPanel: NSPanel {
     init(controller: DictationController) {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 76),
+            contentRect: NSRect(x: 0, y: 0, width: DS.Size.hudWidth, height: DS.Size.hudHeight),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -48,7 +48,7 @@ final class HUDPanel: NSPanel {
         setFrameOrigin(
             NSPoint(
                 x: visible.midX - size.width / 2,
-                y: visible.minY + 96
+                y: visible.minY + DS.Size.hudLift
             )
         )
     }
@@ -63,14 +63,14 @@ final class HUDPanel: NSPanel {
         alphaValue = 0
         orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.16
+            context.duration = DS.Motion.hud
             animator().alphaValue = 1
         }
     }
 
     func dismiss() {
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.16
+            context.duration = DS.Motion.hud
             animator().alphaValue = 0
         } completionHandler: { [weak self] in
             // AppKit always calls this on the main thread.
