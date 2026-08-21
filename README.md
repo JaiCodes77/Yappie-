@@ -6,8 +6,6 @@ wrapper around a cloud model.
 
 Requires **macOS 26**.
 
-A fork of [Murmur YouTube](https://github.com/per-simmons/murmur-youtube) by Pat Simmons,
-rebranded and extended for daily use.
 
 ---
 
