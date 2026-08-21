@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = DictationController()
     private var hud: HUDPanel?
     private var stateObservation: NSObjectProtocol?
+    private var hotkeyActivationTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // A regular app now: dock icon, app menu, standard windows. The HUD is still a
@@ -55,10 +56,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !controller.activate() {
             Permissions.promptForAccessibility()
-            // The tap can only be created once the user grants Accessibility, and there's
-            // no notification for that — poll until it takes.
-            retryActivation()
         }
+        // Accessibility has no change notification. Keep this monitor alive after the
+        // first successful arm as well, so a failed key change can recover without the
+        // Settings window being open.
+        monitorHotkeyActivation()
 
         // Write the dashboard up front so the menu item always opens something, even
         // before the first dictation.
@@ -117,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         let isOpen = NSApp.windows.contains { $0.title == "Engine comparison" && $0.isVisible }
         UserDefaults.standard.set(isOpen, forKey: "comparisonWindowOpen")
+        hotkeyActivationTask?.cancel()
         controller.deactivate()
     }
 
@@ -137,13 +140,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func retryActivation() {
-        Task { @MainActor in
-            while !Permissions.hasAccessibility {
-                try? await Task.sleep(for: .seconds(1))
+    private func monitorHotkeyActivation() {
+        hotkeyActivationTask?.cancel()
+        hotkeyActivationTask = Task { @MainActor in
+            while !Task.isCancelled {
+                if !controller.hotkeyArmed,
+                   !controller.isBindingHotkey,
+                   Permissions.hasAccessibility {
+                    if controller.activate() {
+                        Log.app.info("Accessibility granted — hotkey armed")
+                    }
+                }
+                try? await Task.sleep(for: .seconds(DS.Motion.permissionPoll))
             }
-            controller.activate()
-            Log.app.info("Accessibility granted — hotkey armed")
         }
     }
 }
@@ -195,7 +204,9 @@ private struct MenuContent: View {
     }
 
     var body: some View {
-        Text("Hold \(settings.pushToTalkKey.displayName) to dictate")
+        Text(controller.hotkeyArmed
+             ? "Hold \(settings.pushToTalkKey.displayName) to dictate"
+             : "Push-to-talk is not armed — grant Accessibility for Yappie")
 
         Divider()
 
@@ -210,6 +221,7 @@ private struct MenuContent: View {
                 Text(key.displayName).tag(key)
             }
         }
+        .disabled(controller.isBindingHotkey)
 
         Toggle("Compare mode (both engines)", isOn: $settings.compareMode)
 
@@ -255,8 +267,11 @@ private struct MenuContent: View {
                 .disabled(isPreloadingParakeet || parakeetOnDisk)
         }
 
-        if !Permissions.hasAccessibility {
-            Button("Grant Accessibility…") { Permissions.openAccessibilitySettings() }
+        if !controller.hotkeyArmed {
+            Button("Grant Accessibility…") {
+                Permissions.promptForAccessibility()
+                Permissions.openAccessibilitySettings()
+            }
         }
         if !Permissions.hasMicrophone {
             Button("Grant Microphone…") { Permissions.openMicrophoneSettings() }

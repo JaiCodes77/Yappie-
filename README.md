@@ -91,8 +91,8 @@ contents are restored afterwards.
 ## Install
 
 ```bash
-git clone https://github.com/JaiCodes77/yappie.git
-cd yappie
+git clone https://github.com/JaiCodes77/Yappie-.git
+cd Yappie-
 make install     # builds, signs, copies to /Applications, launches
 ```
 
@@ -173,9 +173,9 @@ The first Apple run for a locale may pause while the OS installs speech assets.
 
 ## Look
 
-Cool limestone chrome, an **amber phosphor page** where transcripts live, copper for
-selection. Red is recording and nothing else. The HUD uses the same phosphor glass and
-never takes focus.
+Violet limestone chrome, a deep **aubergine phosphor page** with lavender type where
+transcripts live, and copper for selection. Red is recording and nothing else. The compact
+HUD uses the same phosphor glass and never takes focus.
 
 ---
 

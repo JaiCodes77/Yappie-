@@ -34,13 +34,13 @@ struct Well<Content: View>: View {
             .background(DS.Color.deck, in: .rect(cornerRadius: radius))
             .overlay(
                 RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(DS.Color.copper.opacity(0.28), lineWidth: DS.Border.hairline)
+                    .strokeBorder(DS.Color.deckEdge, lineWidth: DS.Border.hairline)
             )
             .shadow(
-                color: DS.Shadow.phosphor.color,
-                radius: DS.Shadow.phosphor.radius,
-                x: DS.Shadow.phosphor.x,
-                y: DS.Shadow.phosphor.y
+                color: DS.Shadow.well.color,
+                radius: DS.Shadow.well.radius,
+                x: DS.Shadow.well.x,
+                y: DS.Shadow.well.y
             )
     }
 }
@@ -122,7 +122,7 @@ struct TransportKey: View {
             HStack(spacing: DS.Space.tight) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(DS.Font.iconSmall)
                 }
                 Silkscreen(text: title, color: labelColor)
             }
@@ -184,7 +184,10 @@ struct VUMeter: View {
         .clipShape(.rect(cornerRadius: DS.Radius.control))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.control)
-                .strokeBorder(DS.Color.copper.opacity(isActive ? 0.45 : 0.18), lineWidth: DS.Border.hairline)
+                .strokeBorder(
+                    isActive ? DS.Color.meterEdgeActive : DS.Color.meterEdgeIdle,
+                    lineWidth: DS.Border.hairline
+                )
         )
     }
 
@@ -208,7 +211,7 @@ struct VUMeter: View {
             }
         }
 
-        let color = isActive ? DS.Color.copper : DS.Color.inkOnDeck.opacity(0.35)
+        let color = isActive ? DS.Color.violet : DS.Color.inkOnDeckFaint
         context.stroke(path, with: .color(color), lineWidth: DS.Material.inkLineWidth)
     }
 

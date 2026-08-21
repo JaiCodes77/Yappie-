@@ -73,8 +73,9 @@ final class HUDPanel: NSPanel {
             context.duration = DS.Motion.hud
             animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            // AppKit always calls this on the main thread.
-            MainActor.assumeIsolated { self?.orderOut(nil) }
+            Task { @MainActor in
+                self?.orderOut(nil)
+            }
         }
     }
 }

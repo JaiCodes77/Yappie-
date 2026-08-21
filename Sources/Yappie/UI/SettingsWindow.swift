@@ -12,21 +12,8 @@ struct SettingsWindow: View {
 
             VStack(alignment: .leading, spacing: DS.Space.wide) {
                 panel(label: "Push to talk") {
-                    HStack(spacing: DS.Space.snug) {
-                        ForEach(PushToTalkKey.allCases, id: \.self) { key in
-                            TransportKey(
-                                title: key.displayName,
-                                isEngaged: settings.pushToTalkKey == key,
-                                engagedColor: DS.Color.copper
-                            ) {
-                                settings.pushToTalkKey = key
-                                controller.reloadHotkey()
-                            }
-                        }
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    note("Hold this key anywhere to dictate. The window's Record button works "
-                        + "regardless of what's focused.")
+                    PushToTalkSetup(controller: controller)
+                    note("The window's Record button works regardless of what's focused.")
                 }
 
                 panel(label: "Model") {

@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The app's main window.
 ///
-/// Transport across the top, then the amber phosphor page holding transcripts or the
+/// A compact control bar above the amber phosphor page holding transcripts or the
 /// dictionary. The page is the product: that's where spoken words land.
 struct MainWindow: View {
     @Bindable var controller: DictationController
@@ -25,20 +25,27 @@ struct MainWindow: View {
             DS.Color.chassis.ignoresSafeArea()
 
             VStack(spacing: DS.Space.base) {
-                TransportPanel(controller: controller)
+                ControlBar(controller: controller)
 
-                sectionKeys
+                if !controller.hotkeyArmed {
+                    AccessibilityStrip(controller: controller)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
                 Well {
-                    Group {
-                        switch section {
-                        case .transcriptions: TranscriptionList()
-                        case .dictionary: DictionaryPanel()
+                    VStack(spacing: 0) {
+                        pageHeader
+
+                        Group {
+                            switch section {
+                            case .transcriptions: TranscriptionList()
+                            case .dictionary: DictionaryPanel()
+                            }
                         }
                     }
-                    .padding(DS.Space.hair)
                 }
                 .frame(maxHeight: .infinity)
+                .layoutPriority(1)
             }
             .padding(DS.Space.roomy)
         }
@@ -54,76 +61,133 @@ struct MainWindow: View {
         }
     }
 
-    private var sectionKeys: some View {
-        HStack(spacing: DS.Space.snug) {
+    private var pageHeader: some View {
+        HStack(spacing: DS.Space.tight) {
             ForEach(Section.allCases) { candidate in
-                TransportKey(
-                    title: candidate.title,
-                    isEngaged: section == candidate,
-                    engagedColor: DS.Color.copper
-                ) {
+                Button {
                     withAnimation(DS.Motion.panel) { section = candidate }
+                } label: {
+                    Silkscreen(
+                        text: candidate.title,
+                        color: section == candidate ? DS.Color.inkOnDeck : DS.Color.inkOnDeckMuted
+                    )
+                    .padding(.horizontal, DS.Space.base)
+                    .padding(.vertical, DS.Space.snug)
+                    .background(
+                        section == candidate ? DS.Color.copperSoft : Color.clear,
+                        in: .rect(cornerRadius: DS.Radius.chip)
+                    )
                 }
+                .buttonStyle(.plain)
             }
             Spacer()
+        }
+        .padding(.horizontal, DS.Space.snug)
+        .padding(.vertical, DS.Space.tight)
+        .background(DS.Color.deck)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(DS.Color.deckHairline)
+                .frame(height: DS.Border.seam)
         }
     }
 }
 
-// MARK: - Transport
+// MARK: - Control bar
 
-/// Record / stop, the level meter, and the counter — the top of the unit.
-private struct TransportPanel: View {
+/// Recording and push-to-talk share one status surface, so the same activity never reads
+/// as "idle" in one place and "listening" in another.
+private struct ControlBar: View {
     @Bindable var controller: DictationController
+    @State private var settings = Settings.shared
 
     @State private var elapsed: TimeInterval = 0
     @State private var startedAt: Date?
 
-    private var isRecording: Bool { controller.state.isActive }
+    private var isCapturing: Bool {
+        controller.state == .starting || controller.state == .listening
+    }
+
+    private var isFinishing: Bool { controller.state == .finishing }
 
     var body: some View {
-        HStack(spacing: DS.Space.roomy) {
-            VStack(alignment: .leading, spacing: DS.Space.snug) {
-                Silkscreen(text: "Transport")
-                HStack(spacing: DS.Space.snug) {
-                    TransportKey(
-                        title: isRecording ? "Stop" : "Record",
-                        systemImage: isRecording ? "stop.fill" : "circle.fill",
-                        isEngaged: isRecording
-                    ) {
-                        if isRecording {
-                            controller.stopButtonRecording()
-                        } else {
-                            controller.startButtonRecording()
+        HStack(spacing: DS.Space.base) {
+            TransportKey(
+                title: recordButtonTitle,
+                systemImage: isCapturing ? "stop.fill" : "circle.fill",
+                isEngaged: isCapturing,
+                isEnabled: !isFinishing
+            ) {
+                if isCapturing {
+                    controller.stopButtonRecording()
+                } else {
+                    controller.startButtonRecording()
+                }
+            }
+
+            HStack(spacing: DS.Space.tight) {
+                Lamp(color: DS.Color.record, isLit: isCapturing)
+                Silkscreen(text: "Rec")
+            }
+
+            divider
+
+            VUMeter(level: controller.level, isActive: isCapturing)
+                .frame(width: DS.Size.toolbarMeterWidth, height: DS.Size.toolbarMeterHeight)
+
+            DeckWindow {
+                Readout(text: counterText)
+                    .padding(.horizontal, DS.Space.snug)
+                    .padding(.vertical, DS.Space.tight)
+            }
+
+            Spacer(minLength: DS.Space.base)
+
+            HStack(spacing: DS.Space.snug) {
+                Lamp(color: statusColor, isLit: statusIsLit)
+
+                VStack(alignment: .leading, spacing: DS.Space.hair) {
+                    Silkscreen(text: statusTitle)
+                    Text(statusDetail)
+                        .font(DS.Font.label)
+                        .foregroundStyle(DS.Color.inkSecondary)
+                        .lineLimit(1)
+                        .frame(width: DS.Size.statusCopyWidth, alignment: .leading)
+                }
+
+                Menu {
+                    ForEach(PushToTalkKey.allCases, id: \.self) { key in
+                        Button {
+                            settings.pushToTalkKey = key
+                            _ = controller.reloadHotkey()
+                        } label: {
+                            if settings.pushToTalkKey == key {
+                                Label(key.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(key.displayName)
+                            }
                         }
                     }
-
+                } label: {
                     HStack(spacing: DS.Space.tight) {
-                        Lamp(color: DS.Color.record, isLit: isRecording)
-                        Silkscreen(text: "Rec")
+                        Silkscreen(text: settings.pushToTalkKey.displayName)
+                        Image(systemName: "chevron.down")
+                            .font(DS.Font.iconTiny)
+                            .foregroundStyle(DS.Color.inkSecondary)
                     }
-                    .padding(.leading, DS.Space.tight)
+                    .frame(height: DS.Material.keyHeight)
+                    .padding(.horizontal, DS.Space.base)
+                    .background(DS.Color.cap, in: .rect(cornerRadius: DS.Radius.control))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DS.Radius.control)
+                            .strokeBorder(DS.Color.seam, lineWidth: DS.Border.hairline)
+                    )
                 }
+                .menuStyle(.borderlessButton)
+                .disabled(controller.isBindingHotkey)
             }
-
-            VStack(alignment: .leading, spacing: DS.Space.tight) {
-                Silkscreen(text: "Voice")
-                VUMeter(level: controller.level, isActive: isRecording)
-                    .frame(width: DS.Size.meterWidth, height: DS.Size.meterHeight)
-            }
-
-            VStack(alignment: .leading, spacing: DS.Space.tight) {
-                Silkscreen(text: "Time")
-                DeckWindow {
-                    Readout(text: counterText, large: true)
-                        .padding(.horizontal, DS.Space.base)
-                        .padding(.vertical, DS.Space.snug)
-                }
-            }
-
-            Spacer()
         }
-        .padding(DS.Space.roomy)
+        .padding(DS.Space.base)
         .background(BrushedPanel())
         .onChange(of: controller.state.isActive) { _, active in
             startedAt = active ? Date() : nil
@@ -138,10 +202,119 @@ private struct TransportPanel: View {
         }
     }
 
-    /// Minutes and seconds, zero-padded, the way a tape counter reads.
+    private var divider: some View {
+        Rectangle()
+            .fill(DS.Color.seam)
+            .frame(width: DS.Border.seam, height: DS.Size.toolbarDividerHeight)
+    }
+
+    private var recordButtonTitle: String {
+        if isFinishing { return "Finishing…" }
+        return isCapturing ? "Stop" : "Record"
+    }
+
+    private var statusTitle: String {
+        switch controller.state {
+        case .starting, .listening: "Listening"
+        case .finishing: "Transcribing"
+        case .error: "Needs attention"
+        case .idle: controller.hotkeyArmed ? "Ready" : "Not ready"
+        }
+    }
+
+    private var statusDetail: String {
+        switch controller.state {
+        case .starting, .listening:
+            "Release \(settings.pushToTalkKey.displayName) to finish"
+        case .finishing:
+            controller.transcript.isEmpty ? "Cleaning up your words…" : controller.transcript
+        case .error(let message):
+            message
+        case .idle:
+            controller.hotkeyArmed
+                ? "Hold \(settings.pushToTalkKey.displayName) anywhere"
+                : "Accessibility needs attention"
+        }
+    }
+
+    private var statusColor: Color {
+        switch controller.state {
+        case .starting, .listening: DS.Color.record
+        case .finishing, .error: DS.Color.copper
+        case .idle: controller.hotkeyArmed ? DS.Color.meterGreen : DS.Color.inkSecondary
+        }
+    }
+
+    private var statusIsLit: Bool {
+        controller.state != .idle || controller.hotkeyArmed
+    }
+
     private var counterText: String {
         let total = Int(elapsed)
         return String(format: "%02d:%02d", total / 60, total % 60)
+    }
+}
+
+/// The permission failure stays actionable without consuming half the window. When
+/// `AXIsProcessTrusted` is true but the tap still fails, the signed build changed and the
+/// old TCC row must be refreshed.
+private struct AccessibilityStrip: View {
+    @Bindable var controller: DictationController
+    @State private var accessibilityTrusted = Permissions.hasAccessibility
+
+    var body: some View {
+        HStack(spacing: DS.Space.base) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(DS.Font.iconSmall)
+                .foregroundStyle(DS.Color.copper)
+
+            VStack(alignment: .leading, spacing: DS.Space.hair) {
+                Silkscreen(text: title, color: DS.Color.copper)
+                Text(detail)
+                    .font(DS.Font.label)
+                    .foregroundStyle(DS.Color.inkSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: DS.Space.base)
+
+            TransportKey(title: "Try again") {
+                accessibilityTrusted = Permissions.hasAccessibility
+                _ = controller.reloadHotkey()
+            }
+
+            TransportKey(
+                title: accessibilityTrusted ? "Open Accessibility" : "Grant access",
+                isEngaged: true,
+                engagedColor: DS.Color.copper
+            ) {
+                Permissions.promptForAccessibility()
+                Permissions.openAccessibilitySettings()
+            }
+        }
+        .padding(DS.Space.base)
+        .background(DS.Color.copperSoft, in: .rect(cornerRadius: DS.Radius.control))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.control)
+                .strokeBorder(DS.Color.deckEdge, lineWidth: DS.Border.hairline)
+        )
+        .task {
+            while !Task.isCancelled {
+                accessibilityTrusted = Permissions.hasAccessibility
+                try? await Task.sleep(for: .seconds(DS.Motion.permissionPoll))
+            }
+        }
+    }
+
+    private var title: String {
+        accessibilityTrusted ? "Refresh Accessibility access" : "Allow Accessibility access"
+    }
+
+    private var detail: String {
+        if accessibilityTrusted {
+            return "macOS still has a grant for an older Yappie build. Remove Yappie in Accessibility, add /Applications/Yappie.app again, then switch it on."
+        }
+        return "Add /Applications/Yappie.app in Privacy & Security ▸ Accessibility, then switch it on."
     }
 }
 
@@ -173,7 +346,7 @@ private struct TranscriptionList: View {
                 )
             } else {
                 ScrollView {
-                    LazyVStack(spacing: DS.Space.snug) {
+                    LazyVStack(spacing: 0) {
                         ForEach(runs) { run in
                             TranscriptionRow(run: run) {
                                 withAnimation(DS.Motion.panel) { RunLog.delete(run) }
@@ -191,11 +364,11 @@ private struct TranscriptionList: View {
         HStack {
             Silkscreen(
                 text: "\(store.runs.count) recording\(store.runs.count == 1 ? "" : "s")",
-                color: DS.Color.inkOnDeck.opacity(0.5)
+                color: DS.Color.inkOnDeckMuted
             )
             Spacer()
             Button { isConfirmingClear = true } label: {
-                Silkscreen(text: "Delete all", color: DS.Color.inkOnDeck.opacity(0.5))
+                Silkscreen(text: "Delete all", color: DS.Color.inkOnDeckMuted)
             }
             .buttonStyle(.plain)
         }
@@ -203,7 +376,7 @@ private struct TranscriptionList: View {
         .padding(.vertical, DS.Space.snug)
         .background(DS.Color.deck)
         .overlay(alignment: .top) {
-            Rectangle().fill(DS.Color.seam).frame(height: DS.Border.seam)
+            Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
         }
         // Confirmed, unlike a single row: one row is trivially re-recorded, the whole
         // history is not, and there's no undo.
@@ -230,13 +403,13 @@ private struct TranscriptionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.snug) {
             HStack(spacing: DS.Space.snug) {
-                Silkscreen(text: run.engine, color: DS.Color.inkOnDeck.opacity(0.7))
+                Silkscreen(text: run.engine, color: DS.Color.inkOnDeckStrong)
                 Readout(text: String(format: "%.2fs", run.processSeconds))
-                    .foregroundStyle(DS.Color.inkOnDeck.opacity(0.6))
+                    .foregroundStyle(DS.Color.inkOnDeckMuted)
                 Spacer()
                 Text(run.date, style: .time)
                     .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.inkOnDeck.opacity(0.5))
+                    .foregroundStyle(DS.Color.inkOnDeckMuted)
                 copyButton
                 teachButton
                 deleteButton
@@ -255,9 +428,11 @@ private struct TranscriptionRow: View {
             }
         }
         .padding(DS.Space.base)
-        .background {
-            DeckWindow { Color.clear }
-                .opacity(isHovering ? 0.85 : 1)
+        .background(isHovering ? DS.Color.deckHover : Color.clear)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(DS.Color.deckHairline)
+                .frame(height: DS.Border.hairline)
         }
         .onHover { isHovering = $0 }
         .contextMenu {
@@ -283,13 +458,13 @@ private struct TranscriptionRow: View {
         } label: {
             Silkscreen(
                 text: didCopy ? "Copied" : "Copy",
-                color: DS.Color.inkOnDeck.opacity(didCopy ? 1 : 0.6)
+                color: didCopy ? DS.Color.inkOnDeck : DS.Color.inkOnDeckMuted
             )
             .padding(.horizontal, DS.Space.snug)
             .padding(.vertical, DS.Space.tight)
             .overlay(
                 RoundedRectangle(cornerRadius: DS.Radius.chip)
-                    .strokeBorder(DS.Color.inkOnDeck.opacity(0.3), lineWidth: DS.Border.hairline)
+                    .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
             )
         }
         .buttonStyle(.plain)
@@ -303,13 +478,13 @@ private struct TranscriptionRow: View {
         } label: {
             Silkscreen(
                 text: "Teach",
-                color: DS.Color.inkOnDeck.opacity(0.6)
+                color: DS.Color.inkOnDeckMuted
             )
             .padding(.horizontal, DS.Space.snug)
             .padding(.vertical, DS.Space.tight)
             .overlay(
                 RoundedRectangle(cornerRadius: DS.Radius.chip)
-                    .strokeBorder(DS.Color.inkOnDeck.opacity(0.3), lineWidth: DS.Border.hairline)
+                    .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
             )
         }
         .buttonStyle(.plain)
@@ -323,13 +498,13 @@ private struct TranscriptionRow: View {
     private var deleteButton: some View {
         Button(action: onDelete) {
             Image(systemName: "trash")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(DS.Color.inkOnDeck.opacity(0.55))
+                .font(DS.Font.iconTiny)
+                .foregroundStyle(DS.Color.inkOnDeckMuted)
                 .padding(.horizontal, DS.Space.snug)
                 .padding(.vertical, DS.Space.tight)
                 .overlay(
                     RoundedRectangle(cornerRadius: DS.Radius.chip)
-                        .strokeBorder(DS.Color.inkOnDeck.opacity(0.3), lineWidth: DS.Border.hairline)
+                        .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
                 )
         }
         .buttonStyle(.plain)
@@ -382,8 +557,8 @@ struct SearchField: View {
     var body: some View {
         HStack(spacing: DS.Space.snug) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(DS.Color.inkOnDeck.opacity(0.5))
+                .font(DS.Font.iconSmall)
+                .foregroundStyle(DS.Color.inkOnDeckMuted)
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
                 .font(DS.Font.body)
@@ -391,7 +566,7 @@ struct SearchField: View {
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(DS.Color.inkOnDeck.opacity(0.4))
+                        .foregroundStyle(DS.Color.inkOnDeckFaint)
                 }
                 .buttonStyle(.plain)
             }
@@ -400,7 +575,7 @@ struct SearchField: View {
         .padding(.vertical, DS.Space.snug)
         .background(DS.Color.deck)
         .overlay(alignment: .bottom) {
-            Rectangle().fill(DS.Color.seam).frame(height: DS.Border.seam)
+            Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
         }
     }
 }
@@ -410,12 +585,14 @@ struct EmptyPanel: View {
     let detail: String
 
     var body: some View {
-        VStack(spacing: DS.Space.snug) {
-            Silkscreen(text: label, large: true, color: DS.Color.inkOnDeck.opacity(0.55))
+        VStack(alignment: .leading, spacing: DS.Space.snug) {
+            Silkscreen(text: label, large: true, color: DS.Color.inkOnDeckMuted)
             Text(detail)
                 .font(DS.Font.label)
-                .foregroundStyle(DS.Color.inkOnDeck.opacity(0.4))
+                .foregroundStyle(DS.Color.inkOnDeckFaint)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, DS.Space.roomy)
+        .padding(.top, DS.Space.panel)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

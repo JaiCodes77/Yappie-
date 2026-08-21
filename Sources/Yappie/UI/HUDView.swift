@@ -4,27 +4,27 @@ struct HUDView: View {
     @Bindable var controller: DictationController
 
     var body: some View {
-        HStack(spacing: DS.Space.base) {
+        HStack(spacing: DS.Space.snug) {
             VUMeter(level: controller.level, isActive: controller.state == .listening)
                 .frame(width: DS.Size.waveformWidth, height: DS.Size.waveformHeight)
 
             Text(label)
-                .font(DS.Font.body)
+                .font(DS.Font.hud)
                 .foregroundStyle(isError ? DS.Color.record : DS.Color.inkOnDeck)
-                .lineLimit(2)
+                .lineLimit(1)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(DS.Motion.release, value: controller.transcript)
         }
-        .padding(.horizontal, DS.Space.roomy)
-        .padding(.vertical, DS.Space.base)
+        .padding(.horizontal, DS.Space.snug)
+        .padding(.vertical, DS.Space.tight)
         .frame(width: DS.Size.hudWidth, height: DS.Size.hudHeight)
         .background {
             RoundedRectangle(cornerRadius: DS.Radius.window, style: .continuous)
                 .fill(DS.Color.deck)
                 .overlay {
                     RoundedRectangle(cornerRadius: DS.Radius.window, style: .continuous)
-                        .strokeBorder(DS.Color.copper.opacity(0.35), lineWidth: DS.Border.hairline)
+                        .strokeBorder(DS.Color.deckEdge, lineWidth: DS.Border.hairline)
                 }
                 .shadow(
                     color: DS.Shadow.phosphor.color,

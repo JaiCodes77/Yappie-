@@ -2,11 +2,11 @@ import SwiftUI
 
 /// The design system for Yappie.
 ///
-/// Direction: a copy desk for speech. Words you spoke sit on an amber phosphor page —
-/// one memorable surface. Everything around it is a quiet cool limestone editor (night-ink
-/// in dark appearance). Copper marks selection. Red is recording, and nothing else.
+/// Direction: a copy desk for speech. Words you spoke sit on a deep aubergine phosphor page —
+/// one memorable surface. Everything around it is a quiet violet limestone editor (plum
+/// night-ink in dark appearance). Copper marks selection. Red is recording, and nothing else.
 ///
-/// Deliberately not a cassette deck, not AI-SaaS purple, not system gray.
+/// Deliberately not a cassette deck, not neon AI-SaaS purple, not system gray.
 ///
 /// Every value a view needs lives here; components never declare their own colors, sizes,
 /// radii or durations.
@@ -15,51 +15,62 @@ enum DS {
     // MARK: - Color
 
     enum Color {
-        /// Window chrome. Cool limestone in light, night-ink in dark — not cream, not black.
-        static let chassis = face(light: 0xD5D9E0, dark: 0x0B0F14)
+        /// Window chrome. Violet limestone in light, plum night-ink in dark.
+        static let chassis = face(light: 0xD8D3DE, dark: 0x100C16)
 
         /// Raised cards sitting on the chassis.
-        static let panel = face(light: 0xEEEFF3, dark: 0x151A21)
+        static let panel = face(light: 0xF0EDF4, dark: 0x1B1523)
 
-        static let panelHighlight = face(light: 0xFFFFFF, dark: 0x222833)
-        static let panelShade = face(light: 0xC5CAD3, dark: 0x0A0D12)
+        static let panelHighlight = face(light: 0xFFFFFF, dark: 0x2A2134)
+        static let panelShade = face(light: 0xC7C0CF, dark: 0x0B0810)
 
         /// Recessed list wells that are *not* the phosphor page (settings, comparison).
-        static let well = face(light: 0xE2E5EB, dark: 0x10151C)
+        static let well = face(light: 0xE5E0E9, dark: 0x14101B)
 
-        /// The phosphor page. Always dark amber, both appearances — transcripts live here.
-        static let deck = swatch(0x16110A)
+        /// The phosphor page. Always deep aubergine, both appearances — transcripts live here.
+        static let deck = swatch(0x130E1C)
 
         /// Control faces.
-        static let cap = face(light: 0xF7F8FA, dark: 0x1C232C)
+        static let cap = face(light: 0xF8F5FA, dark: 0x241C2D)
 
-        static let seam = face(light: 0xC2C7D0, dark: 0x2A313C)
+        static let seam = face(light: 0xC4BCCB, dark: 0x3A3044)
 
-        static let ink = face(light: 0x16181E, dark: 0xE8E4DA)
-        static let inkSecondary = face(light: 0x5C6370, dark: 0x9AA19A)
-        static let silkscreen = face(light: 0x3A404C, dark: 0xB4B8B0)
-        /// Phosphor type on the amber page.
-        static let inkOnDeck = swatch(0xF0D39A)
+        static let ink = face(light: 0x1B1720, dark: 0xEEE8F2)
+        static let inkSecondary = face(light: 0x675E6F, dark: 0xAAA0B1)
+        static let silkscreen = face(light: 0x473D50, dark: 0xC2B8CB)
+        /// Pale lavender phosphor type on the aubergine page.
+        static let inkOnDeck = swatch(0xE9DDFB)
+        static let inkOnDeckStrong = inkOnDeck.opacity(0.82)
+        static let inkOnDeckMuted = inkOnDeck.opacity(0.55)
+        static let inkOnDeckFaint = inkOnDeck.opacity(0.36)
+        static let deckHairline = inkOnDeck.opacity(0.14)
+        static let deckHover = inkOnDeck.opacity(0.06)
 
         /// Selection and engaged chrome that is not recording.
         static let copper = swatch(0xC4783A)
         static let copperSoft = swatch(0xC4783A).opacity(0.16)
+        /// Electrical signal color for the phosphor surface and waveform.
+        static let violet = swatch(0x9F72D2)
+        static let violetSoft = violet.opacity(0.16)
+        static let deckEdge = violet.opacity(0.32)
 
         static let record = swatch(0xC8342A)
         static let recordIdle = face(light: 0xC4A8A4, dark: 0x4A2724)
 
-        static let selection = face(light: 0xE8D5C4, dark: 0x2A2118)
+        static let selection = face(light: 0xE7D9E7, dark: 0x2A202F)
         static let selectionEdge = swatch(0xC4783A)
         static let focusRing = swatch(0xC4783A)
-        static let hover = face(light: 0xE4E7ED, dark: 0x1C232C)
+        static let hover = face(light: 0xE8E2EC, dark: 0x241C2D)
 
         // Instrumentation only — the ink-line and correction marks.
-        static let meterFace = swatch(0x16110A)
-        static let meterLamp = swatch(0xC4783A)
-        static let meterNeedle = swatch(0xF0D39A)
+        static let meterFace = deck
+        static let meterLamp = violet
+        static let meterNeedle = inkOnDeck
         static let meterGreen = swatch(0x6F9E45)
         static let meterAmber = swatch(0xE0A04A)
         static let meterRed = swatch(0xC8342A)
+        static let meterEdgeActive = violet.opacity(0.52)
+        static let meterEdgeIdle = violet.opacity(0.22)
 
         private static func swatch(_ hex: UInt32) -> SwiftUI.Color { SwiftUI.Color(hex: hex) }
 
@@ -120,7 +131,10 @@ enum DS {
         static let label = named(size: 12, weight: .regular)
         static let body = serif(size: 15, weight: .regular)
         static let bodyEmphasis = serif(size: 15, weight: .medium)
+        static let hud = serif(size: 12, weight: .regular)
         static let title = named(size: 22, weight: .semibold)
+        static let iconSmall = SwiftUI.Font.system(size: 10, weight: .semibold)
+        static let iconTiny = SwiftUI.Font.system(size: 9, weight: .semibold)
 
         static let counter = SwiftUI.Font.system(size: 13, design: .monospaced).monospacedDigit()
         static let counterLarge = SwiftUI.Font.system(size: 28, weight: .medium, design: .monospaced)
@@ -152,19 +166,23 @@ enum DS {
     enum Size {
         static let chipWell: CGFloat = 80
         static let editorSheet: CGFloat = 460
-        static let hudWidth: CGFloat = 360
-        static let hudHeight: CGFloat = 80
-        static let waveformWidth: CGFloat = 92
-        static let waveformHeight: CGFloat = 28
+        static let hudWidth: CGFloat = 240
+        static let hudHeight: CGFloat = 48
+        static let waveformWidth: CGFloat = 52
+        static let waveformHeight: CGFloat = 18
         static let meterWidth: CGFloat = 180
         static let meterHeight: CGFloat = 48
+        static let toolbarMeterWidth: CGFloat = 128
+        static let toolbarMeterHeight: CGFloat = 32
+        static let toolbarDividerHeight: CGFloat = 34
+        static let statusCopyWidth: CGFloat = 190
         static let settingsWidth: CGFloat = 580
-        static let settingsHeight: CGFloat = 460
+        static let settingsHeight: CGFloat = 540
         static let mainMinWidth: CGFloat = 720
         static let mainMinHeight: CGFloat = 520
         static let comparisonMinWidth: CGFloat = 560
         static let comparisonMinHeight: CGFloat = 420
-        static let hudLift: CGFloat = 96
+        static let hudLift: CGFloat = 68
     }
 
     // MARK: - Radius
@@ -192,7 +210,8 @@ enum DS {
         static let pressed = Spec(color: .black.opacity(0.04), radius: 2, x: 0, y: 0)
         static let panel = Spec(color: .black.opacity(0.10), radius: 16, x: 0, y: 4)
         static let window = Spec(color: .black.opacity(0.22), radius: 28, x: 0, y: 10)
-        static let phosphor = Spec(color: DS.Color.copper.opacity(0.18), radius: 12, x: 0, y: 0)
+        static let phosphor = Spec(color: DS.Color.violet.opacity(0.20), radius: 8, x: 0, y: 0)
+        static let well = Spec(color: .black.opacity(0.24), radius: 4, x: 0, y: 2)
 
         struct Spec {
             let color: SwiftUI.Color
@@ -213,6 +232,10 @@ enum DS {
         static let needleRelease: TimeInterval = 0.36
         static let needleOvershoot: Double = 0.04
         static let hud: TimeInterval = 0.18
+        /// How long the main window waits for a modifier after "Set push-to-talk key".
+        static let bindListen: TimeInterval = 8
+        /// Accessibility has no change notification; the UI polls at this interval.
+        static let permissionPoll: TimeInterval = 1
     }
 }
 

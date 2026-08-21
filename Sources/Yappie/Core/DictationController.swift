@@ -49,6 +49,14 @@ final class DictationController {
     private let capture = AudioCapture()
     private let makeEngine: @Sendable () -> any TranscriptionEngine
 
+    /// Whether the `CGEventTap` is actually installed. Accessibility can look granted in
+    /// System Settings while the tap still fails (ad-hoc signature, new bundle ID).
+    private(set) var hotkeyArmed = false
+
+    /// True while the main window is listening for a key to bind. The arming retry must
+    /// not steal the tap back mid-bind.
+    private(set) var isBindingHotkey = false
+
     /// Injected only by tests; production reads the setting per-utterance below.
     private let formatter: (any TextFormatter)?
 
@@ -88,14 +96,17 @@ final class DictationController {
     /// - Returns: `false` if the hotkey tap couldn't be installed (missing Accessibility).
     @discardableResult
     func activate() -> Bool {
+        guard !isBindingHotkey else { return false }
         hotkey.key = Settings.shared.pushToTalkKey
         hotkey.onPress = { [weak self] in self?.beginDictation() }
         hotkey.onRelease = { [weak self] in self?.endDictation() }
-        return hotkey.start()
+        hotkeyArmed = hotkey.start()
+        return hotkeyArmed
     }
 
     func deactivate() {
         hotkey.stop()
+        hotkeyArmed = false
         cancelDictation()
     }
 
@@ -103,7 +114,25 @@ final class DictationController {
     @discardableResult
     func reloadHotkey() -> Bool {
         hotkey.stop()
+        hotkeyArmed = false
         return activate()
+    }
+
+    /// Drops the tap so a flags-changed event can reach the bind monitor instead of
+    /// starting a dictation (and being swallowed).
+    @discardableResult
+    func beginHotkeyBind() -> Bool {
+        guard !isBindingHotkey else { return false }
+        isBindingHotkey = true
+        hotkey.stop()
+        hotkeyArmed = false
+        return true
+    }
+
+    func finishHotkeyBind() {
+        guard isBindingHotkey else { return }
+        isBindingHotkey = false
+        _ = reloadHotkey()
     }
 
     // MARK: - Button-driven recording

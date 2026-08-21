@@ -22,7 +22,7 @@ struct DictionaryPanel: View {
                     .background(DS.Color.deck)
             }
             .overlay(alignment: .bottom) {
-                Rectangle().fill(DS.Color.seam).frame(height: DS.Border.seam)
+                Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
             }
 
             if entries.isEmpty {
@@ -60,7 +60,7 @@ struct DictionaryPanel: View {
         Button { store.beginAdd() } label: {
             HStack(spacing: DS.Space.tight) {
                 Image(systemName: "plus")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(DS.Font.iconTiny)
                 Silkscreen(text: "Add", color: DS.Color.inkOnDeck)
             }
             .foregroundStyle(DS.Color.inkOnDeck)
@@ -68,7 +68,7 @@ struct DictionaryPanel: View {
             .padding(.vertical, DS.Space.snug)
             .overlay(
                 RoundedRectangle(cornerRadius: DS.Radius.chip)
-                    .strokeBorder(DS.Color.inkOnDeck.opacity(0.35), lineWidth: DS.Border.hairline)
+                    .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
             )
         }
         .buttonStyle(.plain)
@@ -79,12 +79,12 @@ struct DictionaryPanel: View {
     /// the UI — which is only true if you can find it.
     private var footer: some View {
         HStack(spacing: DS.Space.snug) {
-            Silkscreen(text: "\(store.entries.count) entries", color: DS.Color.inkOnDeck.opacity(0.5))
+            Silkscreen(text: "\(store.entries.count) entries", color: DS.Color.inkOnDeckMuted)
             Spacer()
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([DictionaryStore.fileURL])
             } label: {
-                Silkscreen(text: "Reveal dictionary.txt", color: DS.Color.inkOnDeck.opacity(0.5))
+                Silkscreen(text: "Reveal dictionary.txt", color: DS.Color.inkOnDeckMuted)
             }
             .buttonStyle(.plain)
             .help(DictionaryStore.fileURL.path)
@@ -93,7 +93,7 @@ struct DictionaryPanel: View {
         .padding(.vertical, DS.Space.snug)
         .background(DS.Color.deck)
         .overlay(alignment: .top) {
-            Rectangle().fill(DS.Color.seam).frame(height: DS.Border.seam)
+            Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
         }
     }
 }
@@ -114,17 +114,17 @@ private struct DictionaryRow: View {
 
             Silkscreen(
                 text: entry.kind == .correction ? "Fix" : "Term",
-                color: DS.Color.inkOnDeck.opacity(0.5)
+                color: DS.Color.inkOnDeckMuted
             )
             .frame(width: 34, alignment: .leading)
 
             if entry.kind == .correction {
                 Text(entry.hear)
                     .font(DS.Font.body)
-                    .foregroundStyle(DS.Color.inkOnDeck.opacity(0.6))
+                    .foregroundStyle(DS.Color.inkOnDeckMuted)
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(DS.Color.inkOnDeck.opacity(0.4))
+                    .font(DS.Font.iconTiny)
+                    .foregroundStyle(DS.Color.inkOnDeckFaint)
             }
 
             Text(entry.write)
@@ -142,13 +142,13 @@ private struct DictionaryRow: View {
         .opacity(entry.isEnabled ? 1 : 0.45)
         .padding(.horizontal, DS.Space.base)
         .padding(.vertical, DS.Space.snug)
-        .background(isHovering ? DS.Color.hover : DS.Color.deck, in: .rect(cornerRadius: DS.Radius.chip))
+        .background(isHovering ? DS.Color.deckHover : DS.Color.deck, in: .rect(cornerRadius: DS.Radius.chip))
         .onHover { isHovering = $0 }
     }
 
     private func rowButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Silkscreen(text: title, color: DS.Color.inkOnDeck.opacity(0.6))
+            Silkscreen(text: title, color: DS.Color.inkOnDeckMuted)
         }
         .buttonStyle(.plain)
     }
