@@ -4,12 +4,14 @@ import Foundation
 
 /// Which modifier key holds the mic open.
 enum PushToTalkKey: String, CaseIterable, Sendable {
+    case leftOption
     case rightOption
     case fn
     case rightCommand
 
     var keyCode: Int64 {
         switch self {
+        case .leftOption: Int64(kVK_Option)         // 58 — Carbon has no kVK_LeftOption
         case .rightOption: Int64(kVK_RightOption)   // 61
         case .fn: Int64(kVK_Function)               // 63
         case .rightCommand: Int64(kVK_RightCommand) // 54
@@ -27,6 +29,7 @@ enum PushToTalkKey: String, CaseIterable, Sendable {
     /// left/right distinction that the public `CGEventFlags` constants discard.
     var flag: CGEventFlags {
         switch self {
+        case .leftOption: CGEventFlags(rawValue: 0x20)    // NX_DEVICELALTKEYMASK
         case .rightOption: CGEventFlags(rawValue: 0x40)   // NX_DEVICERALTKEYMASK
         case .rightCommand: CGEventFlags(rawValue: 0x10)  // NX_DEVICERCMDKEYMASK
         case .fn: .maskSecondaryFn                        // no left/right variant exists
@@ -35,6 +38,7 @@ enum PushToTalkKey: String, CaseIterable, Sendable {
 
     var displayName: String {
         switch self {
+        case .leftOption: "Left ⌥"
         case .rightOption: "Right ⌥"
         case .fn: "fn"
         case .rightCommand: "Right ⌘"
@@ -42,7 +46,8 @@ enum PushToTalkKey: String, CaseIterable, Sendable {
     }
 
     /// Swallowing `fn` would break fn+arrow, fn+delete and the emoji picker, so we let it
-    /// through. Dedicated right-hand modifiers are safe to consume.
+    /// through. Dedicated Option and right-⌘ keys are consumed so they don't leak into
+    /// the focused app while you dictate.
     var shouldConsumeEvent: Bool { self != .fn }
 }
 
@@ -57,7 +62,7 @@ final class HotkeyMonitor {
     private var runLoopSource: CFRunLoopSource?
     private var isPressed = false
 
-    var key: PushToTalkKey = .rightOption
+    var key: PushToTalkKey = .leftOption
     var onPress: (() -> Void)?
     var onRelease: (() -> Void)?
 

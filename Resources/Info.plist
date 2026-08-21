@@ -3,17 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Murmur YouTube</string>
+	<string>Yappie</string>
 	<key>CFBundleDisplayName</key>
-	<string>Murmur YouTube</string>
-	<!-- Deliberately space-free and distinct from the existing app's `murmur`, so that
-	     `pkill`/`killall` on either app can never match the other. -->
+	<string>Yappie</string>
 	<key>CFBundleExecutable</key>
-	<string>MurmurYouTube</string>
-	<!-- Separate from the existing Murmur's com.murmur.client: distinct TCC identity,
-	     distinct preferences domain, no shared state of any kind. -->
+	<string>Yappie</string>
+	<!-- TCC keys Accessibility and Microphone to this identifier plus the code
+	     signature. Do not change it casually. -->
 	<key>CFBundleIdentifier</key>
-	<string>ai.pivotstudio.murmur-youtube</string>
+	<string>com.jaicodes77.yappie</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -28,10 +26,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>ai.pivotstudio.murmur-youtube</string>
+			<string>com.jaicodes77.yappie</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>murmuryt</string>
+				<string>yappie</string>
 			</array>
 		</dict>
 	</array>
@@ -44,8 +42,8 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Murmur YouTube listens while you hold the push-to-talk key so it can turn your speech into text.</string>
+	<string>Yappie listens while you hold the push-to-talk key so it can turn your speech into text.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Murmur YouTube transcribes your speech on-device to insert text where you're typing.</string>
+	<string>Yappie transcribes your speech on-device to insert text where you're typing.</string>
 </dict>
 </plist>

@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Murmur.Dictionary;
+using Yappie.Dictionary;
 using Shouldly;
 using Xunit;
 
-namespace Murmur.DictionaryTests;
+namespace Yappie.DictionaryTests;
 
 /// <summary>
 /// Runs the shared behavioural contract in <c>shared/dictionary-test-vectors.json</c>.

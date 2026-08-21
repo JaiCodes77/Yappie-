@@ -2,7 +2,7 @@ import Foundation
 
 /// Renders the live comparison page. Self-contained, theme-aware, auto-refreshing.
 enum DashboardHTML {
-    static func render(runs: [DictationRun], compareMode: Bool = false, key: String = "Right \u{2325}") -> String {
+    static func render(runs: [DictationRun], compareMode: Bool = false, key: String = "Left \u{2325}") -> String {
         let byEngine = Dictionary(grouping: runs, by: \.engine)
         let summary = byEngine
             .map { engine, runs in EngineSummary(engine: engine, runs: runs) }
@@ -30,7 +30,7 @@ enum DashboardHTML {
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <!-- The app rewrites this file after every dictation; the page just reloads. -->
         <meta http-equiv="refresh" content="3">
-        <title>Murmur YouTube — engine comparison</title>
+        <title>Yappie — engine comparison</title>
         <style>
         :root{--bg:#fbfbfd;--panel:#fff;--ink:#1d1d1f;--muted:#6e6e73;--line:#e3e3e8;
               --accent:#6b8cff;--accent2:#c278ff;--good:#1a9c5b;}
@@ -100,7 +100,7 @@ enum DashboardHTML {
         <h1>Engine comparison</h1>
         <div class="bar">
           <div class="sub"><span class="dot"></span>live — reloads every 3s · \(runs.count) dictation\(runs.count == 1 ? "" : "s") recorded</div>
-          \(runs.isEmpty ? "" : "<a class=\"btn\" href=\"murmuryt://clear\">Clear results</a>")
+          \(runs.isEmpty ? "" : "<a class=\"btn\" href=\"yappie://clear\">Clear results</a>")
         </div>
         \(body)
         <footer>

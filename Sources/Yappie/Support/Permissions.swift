@@ -3,7 +3,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// Murmur YouTube needs two grants, and neither can be worked around:
+/// Yappie needs two grants, and neither can be worked around:
 /// - **Microphone** — obviously.
 /// - **Accessibility** — for both the `CGEventTap` (hotkey) and the AX text insert.
 ///

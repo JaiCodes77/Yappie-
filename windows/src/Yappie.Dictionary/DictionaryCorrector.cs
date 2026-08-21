@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Murmur.Dictionary;
+namespace Yappie.Dictionary;
 
 /// <summary>One correction that actually fired.</summary>
 public sealed record AppliedCorrection(string From, string To, int Count);

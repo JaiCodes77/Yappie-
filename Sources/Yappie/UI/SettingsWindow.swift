@@ -30,6 +30,7 @@ struct SettingsWindow: View {
                             }
                         }
                     }
+                    .fixedSize(horizontal: false, vertical: true)
                     note("Hold this key anywhere to dictate. The window's Record button works "
                         + "regardless of what's focused.")
                 }
@@ -70,7 +71,7 @@ struct SettingsWindow: View {
             }
             .padding(DS.Space.panel)
         }
-        .frame(width: 520, height: 460)
+        .frame(width: 580, height: 460)
     }
 
     private func panel<Content: View>(

@@ -1,4 +1,4 @@
-import MurmurDictionary
+import YappieDictionary
 import AVFoundation
 import AppKit
 import Foundation

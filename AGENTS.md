@@ -8,8 +8,8 @@ fine and will bite you.
 
 ## What this is
 
-Push-to-talk dictation. Hold a key, talk, release, and cleaned-up text is typed into
-whatever had focus. Two independent implementations:
+Yappie is push-to-talk dictation. Hold a key, talk, release, and cleaned-up text is typed
+into whatever had focus. Two independent implementations:
 
 | | macOS | Windows |
 |---|---|---|
@@ -35,14 +35,14 @@ of them can be exercised by hand.
 
 ```bash
 swift test --filter VectorTests           # macOS side
-cd windows && dotnet test Murmur.sln      # Windows side
+cd windows && dotnet test Yappie.sln      # Windows side
 ```
 
-The Swift copy at `Tests/MurmurDictionaryTests/dictionary-test-vectors.json` is a copy, and
+The Swift copy at `Tests/YappieDictionaryTests/dictionary-test-vectors.json` is a copy, and
 CI fails if it drifts from `shared/`. After editing the shared file:
 
 ```bash
-cp shared/dictionary-test-vectors.json Tests/MurmurDictionaryTests/
+cp shared/dictionary-test-vectors.json Tests/YappieDictionaryTests/
 ```
 
 ---
@@ -76,7 +76,7 @@ invisible to SwiftUI's state graph. Don't "clean that up" into `@State`.
 
 ## Design system
 
-`Sources/MurmurYouTube/UI/DesignSystem.swift` defines every colour, size, radius, duration
+`Sources/Yappie/UI/DesignSystem.swift` defines every colour, size, radius, duration
 and material token. **Views must not contain literal values.** If a component needs a number
 that isn't a token, add the token rather than inlining it.
 
@@ -103,7 +103,7 @@ shows as **on** while the app is untrusted. The `Makefile` auto-detects a Develo
 If a grant does get wedged, reset that one row — never toggle, and never omit the bundle ID:
 
 ```bash
-tccutil reset Accessibility ai.pivotstudio.murmur-youtube
+tccutil reset Accessibility com.jaicodes77.yappie
 ```
 
 A bare `tccutil reset Accessibility` wipes every app on the machine. Then quit System
@@ -139,7 +139,7 @@ key-down is swallowed and the key-up escapes, the target app believes Ctrl is he
 `ValuePattern` replaces a whole field rather than inserting at the caret. `SendInput` is the
 primary path, not a fallback.
 
-**Keep `Murmur.Platform.Windows` logic-free.** Anything living there is code CI cannot
+**Keep `Yappie.Platform.Windows` logic-free.** Anything living there is code CI cannot
 exercise. Retries, debouncing and device-change handling belong in the platform-neutral
 projects behind an interface — those target plain `net10.0`, so `CA1416` turns any accidental
 Win32 call into a build error.

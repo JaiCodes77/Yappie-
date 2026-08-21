@@ -1,4 +1,4 @@
-namespace Murmur.Dictionary;
+namespace Yappie.Dictionary;
 
 /// <summary>
 /// One thing the dictionary knows.

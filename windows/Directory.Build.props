@@ -39,8 +39,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
-    <Company>Pivot Studio</Company>
-    <Product>Murmur</Product>
-    <Copyright>Copyright © Pat Simmons</Copyright>
+    <Company>Jai Pandey</Company>
+    <Product>Yappie</Product>
+    <Copyright>Copyright © Jai Pandey</Copyright>
   </PropertyGroup>
 </Project>

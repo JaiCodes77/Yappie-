@@ -1,4 +1,4 @@
-import MurmurDictionary
+import YappieDictionary
 import AppKit
 import SwiftUI
 
@@ -10,6 +10,7 @@ import SwiftUI
 /// and one piece of stock UI would give the whole thing away.
 struct MainWindow: View {
     @Bindable var controller: DictationController
+    @State private var store = DictionaryStore.shared
 
     @State private var section: Section = .transcriptions
 
@@ -44,6 +45,15 @@ struct MainWindow: View {
             .padding(DS.Space.roomy)
         }
         .frame(minWidth: 720, minHeight: 520)
+        .sheet(item: Binding(
+            get: { store.editorRequest },
+            set: { store.editorRequest = $0 }
+        )) { request in
+            DictionaryEditor(request: request) { entry in
+                store.saveFromEditor(entry, request: request)
+                section = .dictionary
+            }
+        }
     }
 
     private var sectionKeys: some View {
@@ -240,6 +250,7 @@ private struct TranscriptionRow: View {
                     .font(DS.Font.caption)
                     .foregroundStyle(DS.Color.inkOnDeck.opacity(0.5))
                 copyButton
+                teachButton
                 deleteButton
                     .opacity(isHovering ? 1 : 0)
             }
@@ -261,6 +272,15 @@ private struct TranscriptionRow: View {
                 .opacity(isHovering ? 0.85 : 1)
         }
         .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Teach dictionary…") {
+                DictionaryStore.shared.beginTeach(transcript: run.text)
+            }
+            Button("Copy") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(run.text, forType: .string)
+            }
+        }
     }
 
     private var copyButton: some View {
@@ -285,6 +305,28 @@ private struct TranscriptionRow: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    /// Opens the dictionary editor with this transcript as tappable words, so a misspelling
+    /// can be taught without retyping it.
+    private var teachButton: some View {
+        Button {
+            DictionaryStore.shared.beginTeach(transcript: run.text)
+        } label: {
+            Silkscreen(
+                text: "Teach",
+                color: DS.Color.inkOnDeck.opacity(0.6)
+            )
+            .padding(.horizontal, DS.Space.snug)
+            .padding(.vertical, DS.Space.tight)
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.chip)
+                    .strokeBorder(DS.Color.inkOnDeck.opacity(0.3), lineWidth: DS.Border.hairline)
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Add words from this transcript to the dictionary")
+        .disabled(run.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     /// Appears on hover only, and deletes without a confirmation — a single transcript is

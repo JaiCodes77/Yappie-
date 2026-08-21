@@ -1,4 +1,4 @@
-import MurmurDictionary
+import YappieDictionary
 import AppKit
 import SwiftUI
 
@@ -10,8 +10,6 @@ import SwiftUI
 struct DictionaryPanel: View {
     @State private var store = DictionaryStore.shared
     @State private var query = ""
-    @State private var editing: DictionaryEntry?
-    @State private var isAdding = false
 
     private var entries: [DictionaryEntry] { store.filtered(by: query) }
 
@@ -31,7 +29,7 @@ struct DictionaryPanel: View {
                 EmptyPanel(
                     label: store.entries.isEmpty ? "Dictionary empty" : "No matches",
                     detail: store.entries.isEmpty
-                        ? "Add words it keeps getting wrong."
+                        ? "Add a name the engine should know, or a correction for a misspelling. You can also tap Teach on a transcription and pick the words."
                         : "Try a different search."
                 )
             } else {
@@ -40,7 +38,7 @@ struct DictionaryPanel: View {
                         ForEach(entries) { entry in
                             DictionaryRow(
                                 entry: entry,
-                                onEdit: { editing = entry },
+                                onEdit: { store.beginEdit(entry) },
                                 onToggle: {
                                     var updated = entry
                                     updated.isEnabled.toggle()
@@ -56,16 +54,10 @@ struct DictionaryPanel: View {
 
             footer
         }
-        .sheet(isPresented: $isAdding) {
-            DictionaryEditor(entry: nil) { store.add($0) }
-        }
-        .sheet(item: $editing) { entry in
-            DictionaryEditor(entry: entry) { store.update($0) }
-        }
     }
 
     private var addButton: some View {
-        Button { isAdding = true } label: {
+        Button { store.beginAdd() } label: {
             HStack(spacing: DS.Space.tight) {
                 Image(systemName: "plus")
                     .font(.system(size: 9, weight: .bold))
@@ -165,30 +157,68 @@ private struct DictionaryRow: View {
 // MARK: - Editor
 
 /// Add or edit one entry, with the false-positive warning shown live as you type.
-private struct DictionaryEditor: View {
-    let entry: DictionaryEntry?
+///
+/// When opened from a transcription (Teach), the transcript is shown as tappable chips so
+/// you can pick the words the engine got wrong instead of retyping them.
+struct DictionaryEditor: View {
+    let request: DictionaryEditorRequest
     let onSave: (DictionaryEntry) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var kind: DictionaryEntry.Kind
     @State private var hear: String
     @State private var write: String
+    @State private var selectedTokenIDs: Set<Int> = []
 
-    init(entry: DictionaryEntry?, onSave: @escaping (DictionaryEntry) -> Void) {
-        self.entry = entry
+    init(request: DictionaryEditorRequest, onSave: @escaping (DictionaryEntry) -> Void) {
+        self.request = request
         self.onSave = onSave
-        _kind = State(initialValue: entry?.kind ?? .term)
-        _hear = State(initialValue: entry?.hear ?? "")
-        _write = State(initialValue: entry?.write ?? "")
+        switch request.source {
+        case .blank:
+            _kind = State(initialValue: .term)
+            _hear = State(initialValue: "")
+            _write = State(initialValue: "")
+        case .edit(let entry):
+            _kind = State(initialValue: entry.kind)
+            _hear = State(initialValue: entry.hear)
+            _write = State(initialValue: entry.write)
+        case .teach:
+            // A transcript in front of you is almost always a misspelling to correct.
+            _kind = State(initialValue: .correction)
+            _hear = State(initialValue: "")
+            _write = State(initialValue: "")
+        }
+    }
+
+    private var existing: DictionaryEntry? {
+        if case .edit(let entry) = request.source { return entry }
+        return nil
+    }
+
+    private var transcript: String? {
+        if case .teach(let text) = request.source { return text }
+        return nil
+    }
+
+    private var tokens: [TranscriptToken] {
+        guard let transcript else { return [] }
+        return TranscriptToken.split(transcript)
+    }
+
+    private var selectedPhrase: String {
+        tokens
+            .filter { selectedTokenIDs.contains($0.id) }
+            .map(\.word)
+            .joined(separator: " ")
     }
 
     private var draft: DictionaryEntry {
         DictionaryEntry(
-            id: entry?.id ?? UUID(),
+            id: existing?.id ?? UUID(),
             kind: kind,
             write: write.trimmingCharacters(in: .whitespacesAndNewlines),
             hear: kind == .correction ? hear.trimmingCharacters(in: .whitespacesAndNewlines) : "",
-            isEnabled: entry?.isEnabled ?? true
+            isEnabled: existing?.isEnabled ?? true
         )
     }
 
@@ -198,9 +228,21 @@ private struct DictionaryEditor: View {
         !draft.write.isEmpty && (kind == .term || !draft.hear.isEmpty)
     }
 
+    private var title: String {
+        switch request.source {
+        case .blank: "New entry"
+        case .edit: "Edit entry"
+        case .teach: "Teach from transcript"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.roomy) {
-            Silkscreen(text: entry == nil ? "New entry" : "Edit entry", large: true)
+            Silkscreen(text: title, large: true)
+
+            if !tokens.isEmpty {
+                wordChips
+            }
 
             kindPicker
 
@@ -244,8 +286,54 @@ private struct DictionaryEditor: View {
             }
         }
         .padding(DS.Space.panel)
-        .frame(width: 460)
+        .frame(width: DS.Size.editorSheet)
         .background(BrushedPanel(radius: DS.Radius.window))
+        .onChange(of: selectedTokenIDs) { _, _ in applySelectedPhrase() }
+        .onChange(of: kind) { _, _ in applySelectedPhrase() }
+    }
+
+    /// Tappable words from the transcript. Selected chips fill "when you hear" (or the
+    /// term itself), so you don't have to retype a misspelling to correct it.
+    private var wordChips: some View {
+        VStack(alignment: .leading, spacing: DS.Space.snug) {
+            Silkscreen(text: "Tap the words it got wrong")
+            ScrollView {
+                WrappingHStack(spacing: DS.Space.tight, lineSpacing: DS.Space.tight) {
+                    ForEach(tokens) { token in
+                        WordChip(
+                            text: token.display,
+                            isSelected: selectedTokenIDs.contains(token.id)
+                        ) {
+                            if selectedTokenIDs.contains(token.id) {
+                                selectedTokenIDs.remove(token.id)
+                            } else {
+                                selectedTokenIDs.insert(token.id)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: DS.Size.chipWell)
+            .padding(DS.Space.snug)
+            .background(DS.Color.deck, in: .rect(cornerRadius: DS.Radius.chip))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.chip)
+                    .strokeBorder(DS.Color.seam, lineWidth: DS.Border.hairline)
+            )
+        }
+    }
+
+    /// Chips drive the trigger side. For a term that's the word itself; for a correction
+    /// it's "when you hear". The write field is left alone so a typed spelling isn't wiped.
+    private func applySelectedPhrase() {
+        let phrase = selectedPhrase
+        guard !phrase.isEmpty else { return }
+        if kind == .correction {
+            hear = phrase
+        } else {
+            write = phrase
+        }
     }
 
     private var kindPicker: some View {
@@ -281,6 +369,106 @@ private struct DictionaryEditor: View {
                     RoundedRectangle(cornerRadius: DS.Radius.chip)
                         .strokeBorder(DS.Color.seam, lineWidth: DS.Border.hairline)
                 )
+        }
+    }
+}
+
+// MARK: - Teach chips
+
+/// One whitespace-separated token from a transcript, with punctuation stripped for the
+/// dictionary phrase but kept on the chip so the original reading is still visible.
+struct TranscriptToken: Identifiable, Hashable {
+    let id: Int
+    let display: String
+    let word: String
+
+    static func split(_ text: String) -> [TranscriptToken] {
+        text.split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+            .enumerated()
+            .compactMap { index, raw in
+                let display = String(raw)
+                let word = display.trimmingCharacters(in: .punctuationCharacters)
+                guard !word.isEmpty else { return nil }
+                return TranscriptToken(id: index, display: display, word: word)
+            }
+    }
+}
+
+private struct WordChip: View {
+    let text: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(DS.Font.caption)
+                .foregroundStyle(DS.Color.inkOnDeck)
+                .padding(.horizontal, DS.Space.snug)
+                .padding(.vertical, DS.Space.tight)
+                .background(
+                    isSelected ? DS.Color.inkOnDeck.opacity(0.18) : Color.clear,
+                    in: .rect(cornerRadius: DS.Radius.chip)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.chip)
+                        .strokeBorder(
+                            DS.Color.inkOnDeck.opacity(isSelected ? 0.55 : 0.28),
+                            lineWidth: DS.Border.hairline
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Lays children left-to-right, wrapping onto the next line when they run out of width.
+private struct WrappingHStack: Layout {
+    var spacing: CGFloat = DS.Space.tight
+    var lineSpacing: CGFloat = DS.Space.tight
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var usedWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                y += rowHeight + lineSpacing
+                x = 0
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            usedWidth = max(usedWidth, x - spacing)
+        }
+
+        let height = y + rowHeight
+        let width = maxWidth.isFinite ? maxWidth : usedWidth
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                y += rowHeight + lineSpacing
+                x = bounds.minX
+                rowHeight = 0
+            }
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
         }
     }
 }

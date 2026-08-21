@@ -1,74 +1,173 @@
-# Murmur YouTube
+# Yappie
 
-Push-to-talk dictation for macOS. Hold a key, talk, release — cleaned-up text lands in
-whatever text field has focus. A Wispr Flow-shaped app, built native and fully on-device.
+Push-to-talk dictation for macOS. Hold a key, talk, release — cleaned-up text is typed
+into whatever had focus. Fully on-device. Built as a native Swift app, not an Electron
+wrapper around a cloud model.
 
-**Status:** working skeleton. Builds, launches, arms the hotkey, transcribes, injects.
-Branding and the LLM cleanup tier are the next passes.
+Requires **macOS 26**.
 
----
-
-## Coexisting with another dictation app
-
-This app is built to run alongside other dictation tools without colliding with them, which
-is not automatic on macOS and is worth understanding before changing anything:
-
-- **Bundle ID `ai.pivotstudio.murmur-youtube`** — TCC keys Accessibility and Microphone
-  grants to the bundle ID, so granting or revoking a permission here has no effect on any
-  other app, and vice versa.
-- **Executable `MurmurYouTube`** — distinct enough that `pkill -x MurmurYouTube` cannot
-  match a differently-named binary. The `Makefile` only ever targets `$(EXEC)`.
-- **Hotkey is configurable** (Right ⌥ / fn / Right ⌘) precisely because another tool may
-  already own the key you'd reach for first. The event tap inspects only its own keycode
-  and passes everything else through untouched.
-
-If you run more than one dictation app, give each a different push-to-talk key. Two apps on
-the same key both record, and whichever injects text will fight the other.
+A fork of [Murmur YouTube](https://github.com/per-simmons/murmur-youtube) by Pat Simmons,
+rebranded and extended for daily use.
 
 ---
 
-## Quick start
+## Features
 
-```bash
-make install     # builds, bundles, signs, copies to /Applications, launches
+### Dictation
+
+- **Push-to-talk anywhere.** Hold the hotkey, speak, release. Text lands at the caret in
+  the frontmost app. Default key is **Left Option (⌥)**; **Right ⌥**, **fn**, and
+  **Right ⌘** are alternatives so it can sit next to Wispr Flow or Superwhisper
+  without colliding.
+- **Record button.** The main window has transport controls if you would rather click than
+  hold a key.
+- **Live HUD.** A floating overlay shows the level meter and (with Apple's engine) the
+  transcript while you are still talking. It is a non-activating panel — it never steals
+  focus from the field you are dictating into.
+- **Menu bar item.** Status and the same controls while you are in another app.
+- **Start/stop sounds.** Optional ticks when capture starts and finishes.
+
+### Speech engines
+
+- **Apple SpeechTranscriber (default).** Streaming, on-device, no extra download beyond
+  the OS speech model for your locale. Text appears as you talk.
+- **Parakeet TDT (optional).** NVIDIA's model on the Neural Engine via FluidAudio. Batch,
+  not streaming — it resolves on release, typically in a fraction of a second. First use
+  downloads ~470 MB; you can preload from the menu.
+- **Compare mode.** One recording is run through every engine (Apple, Parakeet, and Wispr
+  Flow if it is installed and its hotkey was held). Results show side by side. Nothing is
+  typed into the focused app in this mode, so two transcripts cannot fight.
+
+### Cleanup
+
+- **Rule-based cleanup (on by default).** Strips fillers (`um`, `uh`), applies spoken
+  punctuation (`new line`, `new paragraph`, `open paren`), capitalizes sentences, and
+  adds terminal punctuation.
+- **Smart cleanup.** Optional on-device Foundation Models pass (Apple Intelligence) for
+  tone, lists, and spoken corrections like "make that three, actually". Times out to the
+  rule-based pass so a stall never eats an utterance. Nothing leaves the Mac.
+
+### Personal dictionary
+
+Teach Yappie names, product terms, and jargon the recognizer keeps missing.
+
+- **Term** — a word that should exist (`jistory`, an API name). Biases the speech engine
+  toward that spelling.
+- **Correction** — when you hear X, write Y (`cloud code -> Claude Code`). Applied after
+  transcription, so it is guaranteed even if the engine still misspeaks.
+- **Teach from a transcript.** On any past dictation, tap **Teach**, pick the wrong words
+  as chips, type the spelling you want, save. Also **⌘⇧L**, the menu-bar item **Add
+  dictionary word…**, or the Dictionary tab's Add button.
+- **Plain-text file.** The same list lives at
+  `~/Library/Application Support/Yappie/dictionary.txt` and can be edited in any editor.
+  The app watches the file; changes show up immediately. **Reveal Dictionary File** in
+  the app menu.
+
+Example:
+
+```
+jistory
+Spri
+cloud code -> Claude Code
+# off: whisper flow -> Wispr Flow
 ```
 
-Then grant two permissions — neither is optional, and neither can be requested silently:
+### History and comparison
+
+- Searchable transcription list with copy, delete, and Teach on each row.
+- Correction badges when a dictionary rule fired, so you can see whether a rule is
+  earning its place.
+- Dedicated **Engine comparison** window (⌘D from the menu bar) for side-by-side runs.
+
+### Text injection
+
+Inserts into the focused field via Accessibility when that actually moves the caret, and
+falls back to a pasteboard + ⌘V path for Electron apps (Cursor, VS Code, Slack), Chrome,
+and terminals that accept an AX write and then silently drop it. The previous clipboard
+contents are restored afterwards.
+
+---
+
+## Install
+
+```bash
+git clone https://github.com/JaiCodes77/yappie.git
+cd yappie
+make install     # builds, signs, copies to /Applications, launches
+```
+
+Then grant two permissions — neither is optional:
 
 | Permission | Where | Needed for |
 |---|---|---|
-| **Accessibility** | System Settings ▸ Privacy & Security ▸ Accessibility | The `CGEventTap` that sees the hotkey, and the AX text insert |
+| **Accessibility** | System Settings ▸ Privacy & Security ▸ Accessibility | The hotkey tap, and inserting text |
 | **Microphone** | Prompted on first dictation | Audio capture |
 
-Restart Murmur YouTube after granting Accessibility. Then hold **Right ⌥** and talk.
+Restart Yappie after granting Accessibility. Then hold **Left ⌥** and talk.
 
-### Why grants survive rebuilds here
+Left Option is consumed while Yappie is running so it doesn't leak into the focused
+app. If you still need that key for Option+character shortcuts, switch the hotkey in
+Settings to Right ⌥, fn, or Right ⌘.
 
-TCC stores a *code-signing requirement* per entry, not just a path. An ad-hoc signature
-changes on every build, so the rebuilt binary stops satisfying the stored requirement —
-and the symptom is nasty: the Accessibility toggle still **shows as on** while the app is
-reported untrusted, and flipping it changes nothing because the stale row is the problem.
+If Gatekeeper blocks the first open: right-click → Open. This machine currently signs
+ad-hoc unless a Developer ID is installed.
 
-The `Makefile` therefore signs with a stable Developer ID (auto-detected via
-`security find-identity`, falling back to ad-hoc). Verified: rebuild + reinstall keeps both
-grants with no re-prompt.
+Other targets: `make app` (bundle only), `make run` (run from the staging dir),
+`make clean`.
 
-If a grant ever does get wedged, reset that one row and re-add — never toggle:
+Always use `make`, not a bare `swift build`. The repo lives under Desktop, which is
+iCloud-synced; `make` puts scratch files and the `.app` in `~/Library/Caches/YappieBuild`
+so the sync engine cannot corrupt the signature mid-compile.
+
+### Permissions after a rebuild
+
+TCC stores a *code-signing requirement*, not just a path. An ad-hoc signature changes
+every build, so Accessibility can show as **on** while the app is actually untrusted.
+The Makefile signs with a Developer ID when one exists. If a grant gets wedged:
 
 ```bash
-tccutil reset Accessibility ai.pivotstudio.murmur-youtube
-tccutil reset Microphone   ai.pivotstudio.murmur-youtube
+tccutil reset Accessibility com.jaicodes77.yappie
+tccutil reset Microphone   com.jaicodes77.yappie
 ```
 
-Always pass the bundle ID. A bare `tccutil reset Accessibility` wipes **every** app on the
-machine. Then quit System Settings entirely (⌘Q) before reopening — that pane caches its
-list and will otherwise show the row you just deleted.
+Always pass the bundle ID. A bare `tccutil reset Accessibility` wipes **every** app on
+the machine. Then quit System Settings entirely (⌘Q) before reopening.
 
-> **Keep the build out of iCloud.** `~/Desktop` and `~/Documents` are file-provider synced
-> on this machine; the sync engine can materialize/dematerialize files inside an `.app` and
-> corrupt its signature. `make install` puts the running copy in `/Applications`.
+### Coexisting with Wispr Flow (or Superwhisper)
 
-Other targets: `make app` (bundle only), `make run` (run in place), `make clean`.
+Give each app a different push-to-talk key. Two apps on the same key both record, and
+whichever injects will fight the other. Bundle ID `com.jaicodes77.yappie` and executable
+`Yappie` are distinct, so permissions and `pkill` never collide with another dictation
+app.
+
+---
+
+## Settings
+
+Open with **⌘,** or the menu bar.
+
+| Setting | What it does |
+|---|---|
+| Push to talk | Left ⌥ (default) / Right ⌥ / fn / Right ⌘ |
+| Model | Apple (streaming) or Parakeet (batch) |
+| Clean up transcripts | Rule-based pass. Dictionary corrections run either way. |
+| Smart cleanup | On-device Apple Intelligence. Off if the model is unavailable. |
+| Sound | Ticks on start/stop |
+| Compare mode | Run every engine; type nothing |
+
+---
+
+## Speech engines
+
+| | Apple SpeechTranscriber | Parakeet TDT (FluidAudio) |
+|---|---|---|
+| Default | yes | optional |
+| Dependency | none | SwiftPM |
+| Model | OS-managed | ~470–600 MB download |
+| Live text while speaking | yes | no — resolves on release |
+| Where it runs | on-device | Neural Engine |
+
+The first Apple run for a locale may pause while the OS installs speech assets.
 
 ---
 
@@ -81,121 +180,56 @@ Other targets: `make app` (bundle only), `make run` (run in place), `make clean`
                      ▼          ▼          ▼
               AudioCapture  HUDPanel   TranscriptionEngine
                      │                      │
-                (AudioChunk) ──ordered──► AppleSpeechEngine
+                (AudioChunk) ──ordered──► Apple / Parakeet
                                             │
                                        (transcript)
                                             ▼
                                       TextFormatter
                                             ▼
+                                      DictionaryCorrector
+                                            ▼
                                       TextInjector ─► focused app
 ```
 
-### Decisions worth knowing
+| Path | Role |
+|---|---|
+| `Sources/Yappie/` | macOS app (SwiftUI, Speech, HUD, injection) |
+| `Sources/YappieDictionary/` | Correction engine — shared contract with Windows |
+| `Tests/YappieDictionaryTests/` | Vector tests |
+| `shared/dictionary-test-vectors.json` | Spec both platforms must match |
+| `windows/` | C# dictionary engine. No audio, hotkey, injection, or UI yet. |
+| `bench/` | Apple vs Parakeet scoring harness |
 
-**The HUD must never take focus.** `HUDPanel` is a `.nonactivatingPanel` with
-`canBecomeKey == false`. This is the load-bearing detail of the whole app: if the overlay
-took key status, the user's text field would lose focus and there'd be nothing left to
-inject into. Everything else is replaceable; this isn't.
-
-**The hotkey needs a `CGEventTap`, not `NSEvent`.** `fn` and left/right modifier
-discrimination don't surface through `NSEvent.addGlobalMonitorForEvents` or the Carbon
-hotkey API. A session event tap is the only way to see them — which is why Accessibility
-permission is a hard requirement rather than a nicety.
-
-**Audio ordering is explicit.** `AudioCapture` yields into an `AsyncStream` drained by a
-single task. Spawning a `Task` per buffer would be simpler and would silently corrupt the
-transcript, because unstructured tasks have no ordering guarantee.
-
-**Buffers are copied, never borrowed.** `AVAudioEngine` recycles the buffer it hands to a
-tap the instant the callback returns. `AudioChunk`'s `@unchecked Sendable` is only sound
-because `AudioCapture` always allocates fresh storage before handing off.
-
-**Two swappable seams.** `TranscriptionEngine` and `TextFormatter` are protocols so the
-two components most likely to change can change without touching anything else.
-
-### Layout
-
-```
-Sources/MurmurYouTube/
-├── MurmurYouTubeApp.swift              @main, AppDelegate, MenuBarExtra
-├── Core/
-│   ├── DictationController.swift   state machine, wires everything
-│   ├── HotkeyMonitor.swift         CGEventTap on .flagsChanged
-│   ├── AudioCapture.swift          AVAudioEngine tap + format conversion + RMS
-│   └── TextInjector.swift          AX insert, pasteboard+⌘V fallback
-├── Transcription/
-│   ├── TranscriptionEngine.swift   protocol + AudioChunk
-│   └── AppleSpeechEngine.swift     SpeechAnalyzer / SpeechTranscriber
-├── Formatting/
-│   └── TextFormatter.swift         protocol + RuleBasedFormatter
-├── UI/
-│   ├── HUDPanel.swift              non-activating floating panel
-│   └── HUDView.swift               waveform + live transcript, Brand palette
-└── Support/
-    ├── Settings.swift, Permissions.swift, Log.swift
-```
+The HUD must never take focus. The hotkey is a `CGEventTap` (needed for `fn` and
+left/right modifier discrimination). Audio is fed in capture order through a single
+stream — unstructured tasks per buffer would scramble the transcript.
 
 ---
 
-## Speech engine
+## Windows
 
-Default is Apple's **`SpeechAnalyzer` / `SpeechTranscriber`**, new in macOS 26: no
-dependency, no bundled model, no cloud path, real streaming with `.volatileResults` so
-text appears while you're still talking. The OS downloads and manages model assets, so the
-first run for a locale may pause on `AssetInstallationRequest`.
-
-The intended upgrade is **Parakeet v3** via FluidAudio (CoreML on the Neural Engine) —
-measurably better English WER, ~110× realtime, ~66 MB resident. Implementing
-`TranscriptionEngine` is the entire cost of switching; `DictationController` doesn't
-change.
-
-| | Apple SpeechTranscriber | Parakeet v3 (FluidAudio) | Whisper large-v3 (WhisperKit) |
-|---|---|---|---|
-| Dependency | none | SwiftPM | SwiftPM |
-| Model download | OS-managed | ~600 MB | ~1.5 GB |
-| English accuracy | good | best | good |
-| Languages | many | 25 | 99 |
-| Latency | low | ~80 ms | 200–500 ms |
+The Windows side is a dictionary engine plus a specification. **It cannot transcribe,
+listen, or type yet.** Do not treat it as a working app. Details in
+[`windows/README.md`](windows/README.md) and [`docs/PARAKEET-WINDOWS.md`](docs/PARAKEET-WINDOWS.md).
 
 ---
 
 ## Not built yet
 
-1. **LLM cleanup tier.** `RuleBasedFormatter` strips fillers, fixes spacing, capitalizes
-   sentences and adds terminal punctuation — genuinely useful, entirely deterministic. The
-   real win is a second `TextFormatter` backed by Apple's on-device Foundation Models
-   (macOS 26) for tone, list formatting, and honoring spoken corrections, with Claude as an
-   optional higher-quality tier.
-2. **Command Mode.** Select text, hold a second hotkey, say "make this more formal."
-   Needs AX read of `kAXSelectedTextAttribute` plus an LLM round-trip.
-3. **Personal dictionary.** Names and jargon the ASR keeps missing. `SpeechAnalyzer`
-   supports this through `AnalysisContext` / `SFCustomLanguageModelData`.
-4. **Branding.** `Brand` in `HUDView.swift` is a two-color placeholder gradient. App icon,
-   real palette, HUD motion design, onboarding.
-5. **Onboarding.** A first-run window that walks through both permissions instead of
-   relying on the menu's "Grant…" items.
-6. **Developer ID signing + notarization.** Ends the TCC-reset churn and makes the app
-   distributable.
+1. **Command Mode** — select text, hold a second key, "make this more formal."
+2. **Onboarding** — a first-run walkthrough of both macOS permissions.
+3. **Notarization** — signing works; notarization would end the Gatekeeper warning.
+4. **The Windows platform layer** — audio, hotkey, injection, UI.
+
+Text injection into a real foreground app cannot be verified in CI. That needs a Mac
+and a human.
 
 ---
 
-## Verified
+## Logs
 
-Driven with a synthetic Right ⌥ hold (`scratchpad/ptt/ptt2.swift` posts `flagsChanged`
-events) and confirmed via `/usr/bin/log show --predicate 'subsystem ==
-"ai.pivotstudio.murmur-youtube"'`:
+```bash
+/usr/bin/log show --predicate 'subsystem == "com.jaicodes77.yappie"' --last 10m
+```
 
-- Builds clean under Swift 6 strict concurrency.
-- Signs with Developer ID; grants survive rebuild + reinstall.
-- Launches as an accessory app, no Dock icon, menu bar item present.
-- Event tap arms on grant without a restart (the poller catches it).
-- Full state machine: `starting → listening → finishing → idle`, no errors.
-- `SpeechAnalyzer` starts; models already installed, no download stall.
-- Audio capture runs and converts native 48 kHz → 16 kHz for the engine.
-- HUD renders bottom-center at `{{790, 96}, {340, 76}}` without taking focus.
-- Silence produces an empty transcript and injects nothing.
-
-**Not yet verified:** speech → transcript → cleanup → injection. Synthetic key events
-can't produce audio, so this needs a human to hold the key and talk.
-
-> `log` is shadowed in this shell — use `/usr/bin/log` explicitly or it returns nothing.
+Use `/usr/bin/log` explicitly; `log` is often shadowed in the shell.

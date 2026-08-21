@@ -45,14 +45,14 @@ jobs:
             Select-Object Name, @{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}}
 
       - name: Restore
-        run: dotnet restore Murmur.sln
+        run: dotnet restore Yappie.sln
 
       # --no-incremental is REQUIRED, not tidiness: Roslyn analyzer warnings are not
       # re-emitted on an incremental build, so -warnaserror would pass on cached results
       # and the whole gate would be theatre.
       - name: Build (warnings are errors)
         run: >
-          dotnet build Murmur.sln
+          dotnet build Yappie.sln
           --no-restore
           --configuration Release
           --no-incremental
@@ -61,7 +61,7 @@ jobs:
 
       - name: Test
         run: >
-          dotnet test Murmur.sln
+          dotnet test Yappie.sln
           --no-build
           --configuration Release
           --logger "trx;LogFileName=results.trx"

@@ -1,6 +1,6 @@
-# Murmur for Windows
+# Yappie for Windows
 
-The Windows port of Murmur — push-to-talk dictation, on-device.
+The Windows port of Yappie — push-to-talk dictation, on-device.
 
 > **Status: in progress.** The dictionary engine is complete and passes the shared
 > behavioural contract. The audio, hotkey, injection and UI layers are specified in detail
@@ -76,19 +76,19 @@ windows/
 ├─ Directory.Packages.props     central version pinning
 ├─ global.json                  SDK pin
 ├─ src/
-│  └─ Murmur.Dictionary/        net10.0 — platform-neutral, so CA1416 makes any
+│  └─ Yappie.Dictionary/        net10.0 — platform-neutral, so CA1416 makes any
 │                               Windows-only API call a build error
 └─ tests/
-   └─ Murmur.Dictionary.Tests/  runs the shared vectors
+   └─ Yappie.Dictionary.Tests/  runs the shared vectors
 ```
 
 Planned, following the same rule — platform-neutral unless it truly cannot be:
 
 ```
-   Murmur.Abstractions/      IAudioCapture, IHotkeySource, ITextInjector  (net10.0)
-   Murmur.Speech/            sherpa-onnx behind ITranscriber              (net10.0)
-   Murmur.Platform.Windows/  the ONLY Win32 code in the repo              (net10.0-windows)
-   Murmur.App/               Avalonia UI                                  (net10.0-windows)
+   Yappie.Abstractions/      IAudioCapture, IHotkeySource, ITextInjector  (net10.0)
+   Yappie.Speech/            sherpa-onnx behind ITranscriber              (net10.0)
+   Yappie.Platform.Windows/  the ONLY Win32 code in the repo              (net10.0-windows)
+   Yappie.App/               Avalonia UI                                  (net10.0-windows)
 ```
 
 Keeping the platform layer logic-free is deliberate: anything that lives there is code CI
@@ -101,9 +101,9 @@ projects, behind an interface.
 
 ```bash
 cd windows
-dotnet restore Murmur.sln
-dotnet build   Murmur.sln --no-incremental -warnaserror
-dotnet test    Murmur.sln
+dotnet restore Yappie.sln
+dotnet build   Yappie.sln --no-incremental -warnaserror
+dotnet test    Yappie.sln
 ```
 
 `--no-incremental` is not optional. Roslyn does not re-emit analyzer warnings on an

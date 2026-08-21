@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The design system for Murmur YouTube.
+/// The design system for Yappie.
 ///
 /// Direction: 1980s portable field recorders and cassette decks — Sony TC-D5, Marantz PMD,
 /// Nakamichi, Braun. Equipment, not theme. Every value a view needs lives here; components
@@ -207,6 +207,14 @@ enum DS {
         static let roomy: CGFloat = 16
         static let wide: CGFloat = 24
         static let panel: CGFloat = 32
+    }
+
+    /// Fixed frames that aren't spacing, radius or type.
+    enum Size {
+        /// Transcript word-chip well in the dictionary editor.
+        static let chipWell: CGFloat = 80
+        /// Width of the dictionary add/edit sheet.
+        static let editorSheet: CGFloat = 460
     }
 
     // MARK: - Radius

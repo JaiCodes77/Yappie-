@@ -1,4 +1,4 @@
-import MurmurDictionary
+import YappieDictionary
 import Foundation
 import Observation
 
@@ -27,6 +27,11 @@ final class DictionaryStore {
 
     private(set) var entries: [DictionaryEntry] = []
 
+    /// Drives the add/edit/teach sheet. Set from the dictionary list, a transcription's
+    /// Teach button, or the menu — presented once, from the main window, so it works
+    /// whichever section is showing.
+    var editorRequest: DictionaryEditorRequest?
+
     /// Bumped whenever entries change, so the engine can rebuild its bias list lazily
     /// instead of on every transcription.
     private(set) var revision = 0
@@ -37,14 +42,41 @@ final class DictionaryStore {
 
     static var fileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MurmurYouTube", isDirectory: true)
+            .appendingPathComponent("Yappie", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("dictionary.txt")
     }
 
     private init() {
+        if !FileManager.default.fileExists(atPath: Self.fileURL.path) {
+            try? Self.header.write(to: Self.fileURL, atomically: true, encoding: .utf8)
+        }
         load()
         startWatching()
+    }
+
+    // MARK: - Editor
+
+    func beginAdd() {
+        editorRequest = DictionaryEditorRequest(source: .blank)
+    }
+
+    func beginEdit(_ entry: DictionaryEntry) {
+        editorRequest = DictionaryEditorRequest(source: .edit(entry))
+    }
+
+    func beginTeach(transcript: String) {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        editorRequest = DictionaryEditorRequest(source: .teach(transcript: trimmed))
+    }
+
+    func saveFromEditor(_ entry: DictionaryEntry, request: DictionaryEditorRequest) {
+        switch request.source {
+        case .edit: update(entry)
+        case .blank, .teach: add(entry)
+        }
+        editorRequest = nil
     }
 
     // MARK: - Editing
@@ -134,7 +166,7 @@ final class DictionaryStore {
     }
 
     private static let header = """
-        # Murmur YouTube dictionary
+        # Yappie dictionary
         #
         #   Anthropic                 a term — the engine is told this word exists
         #   cloud code -> Claude Code a correction — when you hear X, write Y
@@ -172,4 +204,19 @@ final class DictionaryStore {
 
         watcher = source
     }
+}
+
+/// What the dictionary editor should open as.
+struct DictionaryEditorRequest: Identifiable {
+    enum Source: Equatable {
+        /// An empty form, for typing a term or correction from scratch.
+        case blank
+        /// Edit an existing entry.
+        case edit(DictionaryEntry)
+        /// Pick words out of a finished transcript, then type the spelling you actually want.
+        case teach(transcript: String)
+    }
+
+    let id = UUID()
+    let source: Source
 }

@@ -1,4 +1,4 @@
-EXEC     := MurmurYouTube
+EXEC     := Yappie
 CONFIG   := debug
 
 ## Build products live OUTSIDE this directory, for the same reason the .app does.
@@ -7,7 +7,7 @@ CONFIG   := debug
 ## .build while the compiler is using them — producing "input file was modified during
 ## the build" on random object files, and occasionally a wedged swift-frontend stuck at
 ## 0% CPU. Moving the scratch path to ~/Library/Caches (never synced) removes the race.
-SCRATCH  := $(HOME)/Library/Caches/MurmurYouTubeBuild/scratch
+SCRATCH  := $(HOME)/Library/Caches/YappieBuild/scratch
 BUILD    := $(SCRATCH)/$(CONFIG)/$(EXEC)
 
 ## The bundle is assembled and signed OUTSIDE this directory on purpose.
@@ -17,8 +17,8 @@ BUILD    := $(SCRATCH)/$(CONFIG)/$(EXEC)
 ## and codesign hard-refuses anything carrying them ("resource fork, Finder information,
 ## or similar detritus not allowed"). `xattr -cr` immediately before signing is not enough
 ## — the provider re-stamps in between. Staging in ~/Library/Caches sidesteps it entirely.
-STAGE    := $(HOME)/Library/Caches/MurmurYouTubeBuild
-APPNAME  := Murmur YouTube.app
+STAGE    := $(HOME)/Library/Caches/YappieBuild
+APPNAME  := Yappie.app
 BUNDLE   := $(STAGE)/$(APPNAME)
 CONTENTS := $(BUNDLE)/Contents
 
@@ -65,7 +65,7 @@ app: build
 		"$(BUNDLE)"
 	@echo "built $(BUNDLE)  [signed: $(SIGN_ID)]"
 
-## Only ever targets the MurmurYouTube executable — never the separate `murmur` app.
+## Only ever targets the Yappie executable.
 run: app
 	@pkill -x $(EXEC) 2>/dev/null || true
 	@open "$(BUNDLE)"

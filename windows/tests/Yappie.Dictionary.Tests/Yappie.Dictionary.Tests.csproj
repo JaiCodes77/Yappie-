@@ -29,7 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Murmur.Dictionary\Murmur.Dictionary.csproj" />
+    <ProjectReference Include="..\..\src\Yappie.Dictionary\Yappie.Dictionary.csproj" />
   </ItemGroup>
 
   <ItemGroup>
