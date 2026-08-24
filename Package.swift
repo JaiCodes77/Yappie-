@@ -18,10 +18,18 @@ let package = Package(
             path: "Sources/YappieDictionary",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        // Words-per-day, streaks, heatmap. Foundation-only so CI can run it on the
+        // same runners that cannot compile the macOS 26 app target.
+        .target(
+            name: "YappieActivity",
+            path: "Sources/YappieActivity",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .executableTarget(
             name: "Yappie",
             dependencies: [
                 "YappieDictionary",
+                "YappieActivity",
                 .product(name: "FluidAudio", package: "FluidAudio"),
             ],
             path: "Sources/Yappie",
@@ -34,6 +42,12 @@ let package = Package(
             dependencies: ["YappieDictionary"],
             path: "Tests/YappieDictionaryTests",
             resources: [.copy("dictionary-test-vectors.json")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "YappieActivityTests",
+            dependencies: ["YappieActivity"],
+            path: "Tests/YappieActivityTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

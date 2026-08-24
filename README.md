@@ -6,7 +6,6 @@ wrapper around a cloud model.
 
 Requires **macOS 26**.
 
-
 ---
 
 ## Features
@@ -75,6 +74,10 @@ cloud code -> Claude Code
 - Searchable transcription list with copy, delete, and Teach on each row.
 - Correction badges when a dictionary rule fired, so you can see whether a rule is
   earning its place.
+- **Activity.** Words dictated per day as a year heatmap (violet phosphor density) and a
+  seven-day bar chart, plus a consecutive-day streak. Compare-mode engine rows for one
+  recording count once. Lives on the Activity tab; today's count and the streak sit in the
+  header on every tab.
 - Dedicated **Engine comparison** window (⌘D from the menu bar) for side-by-side runs.
 
 ### Text injection
@@ -200,6 +203,7 @@ HUD uses the same phosphor glass and never takes focus.
 | Path | Role |
 |---|---|
 | `Sources/Yappie/` | macOS app (SwiftUI, Speech, HUD, injection) |
+| `Sources/YappieActivity/` | Words-per-day, streak, year heatmap — Foundation-only, tested in CI |
 | `Sources/YappieDictionary/` | Correction engine — shared contract with Windows |
 | `Tests/YappieDictionaryTests/` | Vector tests |
 | `shared/dictionary-test-vectors.json` | Spec both platforms must match |

@@ -1,3 +1,4 @@
+import YappieActivity
 import YappieDictionary
 import Foundation
 
@@ -61,6 +62,10 @@ struct DictationRun: Codable, Sendable, Identifiable {
         text = try container.decode(String.self, forKey: .text)
         group = try container.decodeIfPresent(String.self, forKey: .group)
         corrections = try container.decodeIfPresent([AppliedCorrection].self, forKey: .corrections)
+    }
+
+    var spoken: SpokenUtterance {
+        SpokenUtterance(date: date, text: text, group: group)
     }
 }
 

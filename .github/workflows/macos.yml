@@ -1,8 +1,8 @@
 name: macOS
 
-# Runs the shared dictionary contract against the Swift implementation. The Windows
-# workflow runs the identical vectors against the C# one. Both must be green for the two
-# implementations to be considered in agreement — that pairing is the whole point.
+# Runs the shared dictionary contract against the Swift implementation, and the
+# activity ledger (words / streak / heatmap) which is also platform-neutral.
+# The Windows workflow runs the identical dictionary vectors against the C# one.
 
 on:
   push:
@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  dictionary-contract:
-    name: Dictionary contract
+  contracts:
+    name: Dictionary and activity
     runs-on: macos-15
     timeout-minutes: 20
 
@@ -39,8 +39,8 @@ jobs:
       # The app target needs macOS 26 and the Speech framework, which the runner image
       # does not have. The dictionary target is deliberately platform-neutral, so it — and
       # the contract that matters here — builds and tests anywhere.
-      - name: Test the dictionary target
-        run: swift test --filter VectorTests
+      - name: Test the dictionary and activity targets
+        run: swift test --filter 'VectorTests|ActivityTests'
 
       - name: Confirm the vectors on both sides are identical
         run: |

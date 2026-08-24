@@ -1,23 +1,32 @@
+import YappieActivity
 import YappieDictionary
 import AppKit
 import SwiftUI
 
 /// The app's main window.
 ///
-/// A compact control bar above the amber phosphor page holding transcripts or the
-/// dictionary. The page is the product: that's where spoken words land.
+/// A compact control bar above the phosphor page holding transcripts, the dictionary,
+/// or the activity heatmap. The page is the product: that's where spoken words land.
 struct MainWindow: View {
     @Bindable var controller: DictationController
     @State private var store = DictionaryStore.shared
+    @State private var runs = RunStore.shared
 
     @State private var section: Section = .transcriptions
 
     enum Section: String, CaseIterable, Identifiable {
         case transcriptions
         case dictionary
+        case activity
 
         var id: String { rawValue }
-        var title: String { self == .transcriptions ? "Transcriptions" : "Dictionary" }
+        var title: String {
+            switch self {
+            case .transcriptions: "Transcriptions"
+            case .dictionary: "Dictionary"
+            case .activity: "Activity"
+            }
+        }
     }
 
     var body: some View {
@@ -40,6 +49,7 @@ struct MainWindow: View {
                             switch section {
                             case .transcriptions: TranscriptionList()
                             case .dictionary: DictionaryPanel()
+                            case .activity: ActivityPanel()
                             }
                         }
                     }
@@ -81,6 +91,7 @@ struct MainWindow: View {
                 .buttonStyle(.plain)
             }
             Spacer()
+            ActivityHeaderChip(ledger: activityLedger)
         }
         .padding(.horizontal, DS.Space.snug)
         .padding(.vertical, DS.Space.tight)
@@ -90,6 +101,10 @@ struct MainWindow: View {
                 .fill(DS.Color.deckHairline)
                 .frame(height: DS.Border.seam)
         }
+    }
+
+    private var activityLedger: ActivityLedger {
+        ActivityLedger(utterances: runs.runs.map(\.spoken))
     }
 }
 

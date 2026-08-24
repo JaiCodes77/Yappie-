@@ -34,8 +34,9 @@ a failing vector without changing the other is how the two silently diverge — 
 of them can be exercised by hand.
 
 ```bash
-swift test --filter VectorTests           # macOS side
-cd windows && dotnet test Yappie.sln      # Windows side
+swift test --filter VectorTests    # macOS dictionary
+swift test --filter ActivityTests  # words / streak / heatmap
+cd windows && dotnet test Yappie.sln # Windows dictionary
 ```
 
 The Swift copy at `Tests/YappieDictionaryTests/dictionary-test-vectors.json` is a copy, and

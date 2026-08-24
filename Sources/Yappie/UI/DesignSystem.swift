@@ -53,6 +53,14 @@ enum DS {
         static let violet = swatch(0x9F72D2)
         static let violetSoft = violet.opacity(0.16)
         static let deckEdge = violet.opacity(0.32)
+        /// Daily word density on the phosphor page. Never red — red is recording.
+        static let heatmapEmpty = inkOnDeck.opacity(0.08)
+        static let heatmapFaint = violet.opacity(0.28)
+        static let heatmapLow = violet.opacity(0.48)
+        static let heatmapMid = violet.opacity(0.72)
+        static let heatmapFull = violet
+        static let heatmapFuture = inkOnDeck.opacity(0.04)
+        static let heatmapFocusRing = inkOnDeck.opacity(0.45)
 
         static let record = swatch(0xC8342A)
         static let recordIdle = face(light: 0xC4A8A4, dark: 0x4A2724)
@@ -139,6 +147,7 @@ enum DS {
         static let counter = SwiftUI.Font.system(size: 13, design: .monospaced).monospacedDigit()
         static let counterLarge = SwiftUI.Font.system(size: 28, weight: .medium, design: .monospaced)
             .monospacedDigit()
+        static let heatmapWeekday = named(size: 8, weight: .semibold)
 
         static let silkscreenTracking: CGFloat = 0.6
 
@@ -183,12 +192,21 @@ enum DS {
         static let comparisonMinWidth: CGFloat = 560
         static let comparisonMinHeight: CGFloat = 420
         static let hudLift: CGFloat = 68
+        static let heatmapCell: CGFloat = 10
+        static let heatmapGap: CGFloat = 2
+        static let heatmapWeekdayWidth: CGFloat = 18
+        static let heatmapMonthHeight: CGFloat = 16
+        static let weekBarWidth: CGFloat = 28
+        static let weekBarHeight: CGFloat = 72
+        static let weekBarGap: CGFloat = 8
+        static let heatmapLegendCell: CGFloat = 10
     }
 
     // MARK: - Radius
 
     enum Radius {
         static let none: CGFloat = 0
+        static let heatmap: CGFloat = 2
         static let chip: CGFloat = 6
         static let control: CGFloat = 8
         static let panel: CGFloat = 12
