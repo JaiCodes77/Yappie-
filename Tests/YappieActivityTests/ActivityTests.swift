@@ -29,11 +29,12 @@ struct ActivityTests {
     }
 
     @Test func nfcAndNfdCountAsOneWord() {
-        // Explicit code points so the compiler cannot NFC-normalise a café literal
-        // and make the two strings identical before we count them.
+        // Explicit code points so the compiler cannot NFC-normalise a café literal.
+        // Swift's `==` is canonical-equivalent, so these compare equal as Strings even
+        // though the scalars differ — that's the engine-output case this is guarding.
         let composed = "caf\u{00E9}"
         let decomposed = "cafe\u{0301}"
-        #expect(composed != decomposed)
+        #expect(Array(composed.unicodeScalars) != Array(decomposed.unicodeScalars))
         #expect(SpokenWordCount.count(in: composed) == 1)
         #expect(SpokenWordCount.count(in: decomposed) == 1)
     }
