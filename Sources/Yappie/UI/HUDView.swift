@@ -1,43 +1,64 @@
 import SwiftUI
 
+/// The floating capsule shown while you hold the key.
+///
+/// It has to be readable in a quarter-second glance over whatever app you're dictating
+/// into, so: a state lamp, the level, and the words. The words are the wide part, and they
+/// truncate from the head — what you just said matters more than how you started.
 struct HUDView: View {
     @Bindable var controller: DictationController
 
     var body: some View {
         HStack(spacing: DS.Space.snug) {
-            VUMeter(level: controller.level, isActive: controller.state == .listening)
-                .frame(width: DS.Size.waveformWidth, height: DS.Size.waveformHeight)
+            Lamp(color: lampColor, isLit: true)
+
+            LevelMeter(level: controller.level, isActive: isListening, onPage: true)
+                .frame(width: DS.Size.hudMeterWidth, height: DS.Size.hudMeterHeight)
 
             Text(label)
                 .font(DS.Font.hud)
-                .foregroundStyle(isError ? DS.Color.record : DS.Color.inkOnDeck)
+                .foregroundStyle(isError ? DS.Color.record : DS.Color.inkOnPage)
                 .lineLimit(1)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(DS.Motion.release, value: controller.transcript)
         }
-        .padding(.horizontal, DS.Space.snug)
-        .padding(.vertical, DS.Space.tight)
+        .padding(.horizontal, DS.Space.base)
         .frame(width: DS.Size.hudWidth, height: DS.Size.hudHeight)
         .background {
             RoundedRectangle(cornerRadius: DS.Radius.window, style: .continuous)
-                .fill(DS.Color.deck)
+                .fill(DS.Color.page)
                 .overlay {
                     RoundedRectangle(cornerRadius: DS.Radius.window, style: .continuous)
-                        .strokeBorder(DS.Color.deckEdge, lineWidth: DS.Border.hairline)
+                        .strokeBorder(edgeColor, lineWidth: DS.Border.hairline)
                 }
                 .shadow(
-                    color: DS.Shadow.phosphor.color,
-                    radius: DS.Shadow.phosphor.radius,
-                    x: DS.Shadow.phosphor.x,
-                    y: DS.Shadow.phosphor.y
+                    color: DS.Shadow.hud.color,
+                    radius: DS.Shadow.hud.radius,
+                    x: DS.Shadow.hud.x,
+                    y: DS.Shadow.hud.y
                 )
         }
+    }
+
+    private var isListening: Bool {
+        controller.state == .starting || controller.state == .listening
     }
 
     private var isError: Bool {
         if case .error = controller.state { return true }
         return false
+    }
+
+    private var lampColor: Color {
+        if isError { return DS.Color.record }
+        return isListening ? DS.Color.record : DS.Color.copper
+    }
+
+    /// Red while capturing, so the HUD reads as "live mic" from the corner of your eye.
+    private var edgeColor: Color {
+        if isError { return DS.Color.record.opacity(DS.Color.Alpha.selectedEdge) }
+        return isListening ? DS.Color.record.opacity(DS.Color.Alpha.meterRest) : DS.Color.pageEdge
     }
 
     private var label: String {

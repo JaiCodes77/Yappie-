@@ -69,25 +69,58 @@ as one ranking.
 asserts it. Use `await MainActor.run` from any non-main-actor context. This took the app
 down once already.
 
-**Mutating `@State` inside a `Canvas` draw closure floods the log and corrupts state.** The
-VU meter keeps its needle physics in a plain reference type the view merely holds, which is
-invisible to SwiftUI's state graph. Don't "clean that up" into `@State`.
+**Mutating `@State` inside a `Canvas` draw closure floods the log and corrupts state.**
+`LevelMeter` keeps its sample trace and ballistics in a plain reference type the view merely
+holds, which is invisible to SwiftUI's state graph. Don't "clean that up" into `@State`.
+
+**`YearRamp` measures its width in a `.background { GeometryReader }`, not by wrapping
+itself in one.** Its height is a function of its width — it sizes 371 cells to fit — so
+reading the width in the same pass that sets the height is circular, and the symptom is a
+clipped bottom row rather than an error.
 
 ---
 
 ## Design system
 
-`Sources/Yappie/UI/DesignSystem.swift` defines every colour, size, radius, duration
-and material token. **Views must not contain literal values.** If a component needs a number
-that isn't a token, add the token rather than inlining it.
+`Sources/Yappie/UI/DesignSystem.swift` defines every colour, size, radius, alpha, font and
+duration token. **Views must not contain literal values.** If a component needs a number
+that isn't a token, add the token rather than inlining it. `DS.Color.Alpha` exists for the
+same reason — an accent tinted at some inline `0.35` cannot be re-tuned centrally.
 
-The direction is a **copy desk for speech**: cool limestone chrome, an amber phosphor page
-where transcripts live, copper for selection. Two rules that are not negotiable:
+The direction is a **copy desk for speech**. Three surfaces, and each is a distinct value in
+*both* appearances:
+
+| Token | Light | Dark |
+|---|---|---|
+| `chassis` — the window | violet limestone | plum night-ink |
+| `bar` — raised chrome, cards, sheets | one step lighter | one step lighter |
+| `page` — where transcripts live | warm paper | aubergine phosphor |
+
+**A surface you cannot see is not a surface.** The first version pinned `page` to a fixed
+dark aubergine in both appearances, which put `#130E1C` next to a `#100C16` chassis — two
+values nobody can tell apart, so in dark mode the whole window read as one flat slab and the
+"one memorable surface" idea was invisible. If you re-tune the palette, check both
+appearances at once and keep the three steps separable.
+
+Type: system sans for chrome, **New York serif for the words you spoke** — a transcript
+should read like copy, not like a log line. Counters are monospaced so a running clock
+doesn't jitter. `Eyebrow` is the small editorial label; it is sentence case, not
+silkscreened all-caps.
+
+Three rules that are not negotiable:
 
 - **Red means recording.** Nothing else in the app is red.
 - **The HUD never takes focus.** It is a non-activating panel.
+- **Row actions are always in the view tree**, fading in on hover rather than being built
+  inside `if isHovering`. A view that isn't built does not exist for VoiceOver or the
+  keyboard, which is how Copy, Teach, Edit and Delete were unreachable for a while.
 
 Ruled out: cassette-deck pastiche, AI-SaaS purple, default SwiftUI gray, neon, glowing text.
+
+The window has **no title bar** (`.windowStyle(.hiddenTitleBar)` plus
+`.ignoresSafeArea(.container, edges: .top)`). `TopBar` *is* the title bar, and
+`DS.Size.trafficLights` is the leading gutter the close/minimise/zoom buttons sit in — if
+you change the bar's leading padding, they will overlap the first control.
 
 ---
 

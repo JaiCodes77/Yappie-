@@ -2,9 +2,9 @@ import SwiftUI
 
 /// The design system for Yappie.
 ///
-/// Direction: a copy desk for speech. Words you spoke sit on a deep aubergine phosphor page —
-/// one memorable surface. Everything around it is a quiet violet limestone editor (plum
-/// night-ink in dark appearance). Copper marks selection. Red is recording, and nothing else.
+/// Direction: a copy desk for speech. Words you spoke sit on a **page** — warm paper in
+/// light appearance, aubergine phosphor in dark. Everything around the page is quieter
+/// violet-grey chrome. Copper marks selection. Red is recording, and nothing else.
 ///
 /// Deliberately not a cassette deck, not neon AI-SaaS purple, not system gray.
 ///
@@ -14,73 +14,115 @@ enum DS {
 
     // MARK: - Color
 
+    /// Three surfaces, in order of elevation: `chassis` (the window), `bar` (raised chrome
+    /// and cards), `page` (the recessed reading surface). Each is a distinct value in *both*
+    /// appearances — a surface you cannot see is not a surface.
     enum Color {
-        /// Window chrome. Violet limestone in light, plum night-ink in dark.
-        static let chassis = face(light: 0xD8D3DE, dark: 0x100C16)
 
-        /// Raised cards sitting on the chassis.
-        static let panel = face(light: 0xF0EDF4, dark: 0x1B1523)
+        // MARK: Chrome
 
-        static let panelHighlight = face(light: 0xFFFFFF, dark: 0x2A2134)
-        static let panelShade = face(light: 0xC7C0CF, dark: 0x0B0810)
+        /// The window background. Everything else sits on it.
+        static let chassis = face(light: 0xE8E4EC, dark: 0x1A1520)
 
-        /// Recessed list wells that are *not* the phosphor page (settings, comparison).
-        static let well = face(light: 0xE5E0E9, dark: 0x14101B)
+        /// Raised chrome: the control bar, cards, sheets.
+        static let bar = face(light: 0xF5F2F8, dark: 0x241E2E)
 
-        /// The phosphor page. Always deep aubergine, both appearances — transcripts live here.
-        static let deck = swatch(0x130E1C)
+        /// Control faces — buttons, menus, fields in the chrome.
+        static let cap = face(light: 0xFFFFFF, dark: 0x2E2739)
 
-        /// Control faces.
-        static let cap = face(light: 0xF8F5FA, dark: 0x241C2D)
+        /// Hairline between chrome surfaces.
+        static let seam = face(light: 0xD5CFDC, dark: 0x352C42)
 
-        static let seam = face(light: 0xC4BCCB, dark: 0x3A3044)
+        /// Hover tint for chrome controls.
+        static let capHover = face(light: 0xEDE8F2, dark: 0x393046)
 
-        static let ink = face(light: 0x1B1720, dark: 0xEEE8F2)
-        static let inkSecondary = face(light: 0x675E6F, dark: 0xAAA0B1)
-        static let silkscreen = face(light: 0x473D50, dark: 0xC2B8CB)
-        /// Pale lavender phosphor type on the aubergine page.
-        static let inkOnDeck = swatch(0xE9DDFB)
-        static let inkOnDeckStrong = inkOnDeck.opacity(0.82)
-        static let inkOnDeckMuted = inkOnDeck.opacity(0.55)
-        static let inkOnDeckFaint = inkOnDeck.opacity(0.36)
-        static let deckHairline = inkOnDeck.opacity(0.14)
-        static let deckHover = inkOnDeck.opacity(0.06)
+        static let ink = face(light: 0x1B1720, dark: 0xEFE9F3)
+        static let inkSecondary = face(light: 0x62596B, dark: 0xA79DAF)
+        /// Small editorial labels on chrome.
+        static let inkLabel = face(light: 0x4A4253, dark: 0xB9AFC3)
 
-        /// Selection and engaged chrome that is not recording.
-        static let copper = swatch(0xC4783A)
-        static let copperSoft = swatch(0xC4783A).opacity(0.16)
-        /// Electrical signal color for the phosphor surface and waveform.
-        static let violet = swatch(0x9F72D2)
-        static let violetSoft = violet.opacity(0.16)
-        static let deckEdge = violet.opacity(0.32)
-        /// Daily word density on the phosphor page. Never red — red is recording.
-        static let heatmapEmpty = inkOnDeck.opacity(0.08)
-        static let heatmapFaint = violet.opacity(0.28)
-        static let heatmapLow = violet.opacity(0.48)
-        static let heatmapMid = violet.opacity(0.72)
-        static let heatmapFull = violet
-        static let heatmapFuture = inkOnDeck.opacity(0.04)
-        static let heatmapFocusRing = inkOnDeck.opacity(0.45)
+        // MARK: The page
 
-        static let record = swatch(0xC8342A)
-        static let recordIdle = face(light: 0xC4A8A4, dark: 0x4A2724)
+        /// The reading surface. Warm paper in light, aubergine phosphor in dark.
+        static let page = face(light: 0xFBF8F3, dark: 0x0E0A14)
 
-        static let selection = face(light: 0xE7D9E7, dark: 0x2A202F)
-        static let selectionEdge = swatch(0xC4783A)
-        static let focusRing = swatch(0xC4783A)
-        static let hover = face(light: 0xE8E2EC, dark: 0x241C2D)
+        /// A row on the page under the pointer.
+        static let pageHover = face(light: 0xF2ECE1, dark: 0x191223)
 
-        // Instrumentation only — the ink-line and correction marks.
-        static let meterFace = deck
-        static let meterLamp = violet
-        static let meterNeedle = inkOnDeck
-        static let meterGreen = swatch(0x6F9E45)
-        static let meterAmber = swatch(0xE0A04A)
-        static let meterRed = swatch(0xC8342A)
-        static let meterEdgeActive = violet.opacity(0.52)
-        static let meterEdgeIdle = violet.opacity(0.22)
+        /// A row on the page that is selected or otherwise held open.
+        static let pageRaised = face(light: 0xEFE8DB, dark: 0x1E1629)
 
-        private static func swatch(_ hex: UInt32) -> SwiftUI.Color { SwiftUI.Color(hex: hex) }
+        /// Rules and dividers drawn on the page.
+        static let pageRule = face(light: 0xE4DBCB, dark: 0x2B2137)
+
+        /// The page's own outer edge.
+        static let pageEdge = face(light: 0xDCD2C0, dark: 0x2F2442)
+
+        static let inkOnPage = face(light: 0x1F1A26, dark: 0xEEE4F8)
+        static let inkOnPageStrong = face(light: 0x3A3244, dark: 0xD1C4E2)
+        /// Secondary type on the page. Holds 4.5:1 in both appearances.
+        static let inkOnPageMuted = face(light: 0x6B6272, dark: 0xA398B4)
+        /// Decoration only — legend captions, weekday initials. Never essential copy.
+        static let inkOnPageFaint = face(light: 0x8E8697, dark: 0x796E89)
+
+        // MARK: Accents
+
+        /// Selection, and engaged chrome that is not recording.
+        static let copper = face(light: 0xA85F26, dark: 0xD08A4A)
+        static let copperSoft = face(light: 0xA85F26, dark: 0xD08A4A).opacity(0.14)
+
+        /// Electrical signal color: the level meter and the activity ramp.
+        static let violet = face(light: 0x6D46A8, dark: 0xA87DD8)
+
+        /// Recording. Nothing else in the app is red.
+        static let record = face(light: 0xC0392B, dark: 0xE05A4E)
+
+        /// Armed and ready.
+        static let positive = face(light: 0x40702A, dark: 0x86BB57)
+        /// A caution that is not a failure — a dictionary rule that fired, a warning.
+        static let caution = face(light: 0x8A5D0F, dark: 0xE0A04A)
+
+        // MARK: The activity ramp
+
+        /// Words per day on the page. Never red — red is recording.
+        static let rampEmpty = face(light: 0xE9E2D6, dark: 0x1C1528)
+        static let rampFaint = violet.opacity(0.26)
+        static let rampLow = violet.opacity(0.46)
+        static let rampMid = violet.opacity(0.70)
+        static let rampFull = violet
+        /// A day that has not happened yet.
+        static let rampFuture = face(light: 0xF4F0E8, dark: 0x130E1B)
+
+        // MARK: Focus
+
+        static let focusRing = face(light: 0xA85F26, dark: 0xD08A4A)
+
+        /// Alphas views apply to an accent to derive a tint or an edge from it.
+        ///
+        /// Named here rather than inlined at the call site so the whole system can be
+        /// re-tuned in one place — the same reason the colours themselves live here.
+        enum Alpha {
+            /// Wash behind a warning or an accented block.
+            static let tint: Double = 0.10
+            /// Faint wash — a badge that shouldn't compete with the text on it.
+            static let wash: Double = 0.08
+            /// Edge of an accented block.
+            static let edge: Double = 0.35
+            /// Edge of an engaged control, or the recording ring.
+            static let engagedEdge: Double = 0.50
+            /// Edge of a selected chip.
+            static let selectedEdge: Double = 0.60
+            /// A lamp that is off.
+            static let lampOff: Double = 0.22
+            /// The halo around a lit lamp.
+            static let lampHalo: Double = 0.35
+            /// The level meter's resting rule.
+            static let meterRest: Double = 0.45
+            /// Row actions before the pointer reaches them.
+            static let quiet: Double = 0.55
+            /// A dictionary entry that is switched off.
+            static let disabled: Double = 0.50
+        }
 
         private static func face(light: UInt32, dark: UInt32) -> SwiftUI.Color {
             SwiftUI.Color(nsColor: NSColor(name: nil) { appearance in
@@ -90,69 +132,41 @@ enum DS {
         }
     }
 
-    // MARK: - Material
-
-    enum Material {
-        static let grainLight: Double = 0
-        static let grainDark: Double = 0
-        static let grainPitch: CGFloat = 4
-        static let grainAngle: Angle = .degrees(0)
-
-        static let screwSize: CGFloat = 0
-        static let screwInset: CGFloat = 0
-
-        static let ventSlotWidth: CGFloat = 0
-        static let ventSlotHeight: CGFloat = 0
-        static let ventSlotGap: CGFloat = 0
-        static let ventRadius: CGFloat = 0
-
-        static let lampSize: CGFloat = 8
-        static let lampSpecular: Double = 0.5
-        static let lampUnlitOpacity: Double = 0.28
-
-        static let segmentThickness: CGFloat = 3
-        static let segmentGap: CGFloat = 1
-        static let segmentGhostOpacity: Double = 0.12
-
-        static let keyHeight: CGFloat = 32
-        static let keyMinWidth: CGFloat = 48
-        static let keyTravel: CGFloat = 0.5
-
-        static let needleSweep: Angle = .degrees(0)
-        static let needleWidth: CGFloat = 1.75
-        static let meterZeroPoint: Double = 0.72
-        static let inkLineWidth: CGFloat = 1.75
-        static let waveformBars: Int = 48
-    }
-
     // MARK: - Type
 
-    /// Condensed geometric labels (Avenir Next Condensed) against a literary serif for
-    /// the words you spoke (New York). Counters stay monospaced.
+    /// System sans for chrome, New York serif for the words you spoke. The serif is the
+    /// point: a transcript should read like copy, not like a log line. Counters are
+    /// monospaced so a running clock doesn't jitter.
     enum Font {
-        private static let display = "Avenir Next Condensed"
+        /// Small editorial label — a kicker above a value or a section.
+        static let eyebrow = sans(size: 11, weight: .semibold)
+        static let eyebrowLarge = sans(size: 13, weight: .semibold)
+        static let eyebrowTracking: CGFloat = 0.3
 
-        static let silkscreen = named(size: 11, weight: .semibold)
-        static let silkscreenLarge = named(size: 13, weight: .semibold)
+        static let caption = sans(size: 11, weight: .regular)
+        static let label = sans(size: 12, weight: .regular)
+        static let labelEmphasis = sans(size: 12, weight: .medium)
+        static let title = sans(size: 15, weight: .semibold)
 
-        static let caption = serif(size: 11, weight: .regular)
-        static let label = named(size: 12, weight: .regular)
+        /// Transcripts.
         static let body = serif(size: 15, weight: .regular)
         static let bodyEmphasis = serif(size: 15, weight: .medium)
-        static let hud = serif(size: 12, weight: .regular)
-        static let title = named(size: 22, weight: .semibold)
-        static let iconSmall = SwiftUI.Font.system(size: 10, weight: .semibold)
+        static let hud = serif(size: 13, weight: .regular)
+
+        static let iconSmall = SwiftUI.Font.system(size: 11, weight: .semibold)
         static let iconTiny = SwiftUI.Font.system(size: 9, weight: .semibold)
+        /// The arrow inside a correction badge.
+        static let iconMicro = SwiftUI.Font.system(size: 7, weight: .bold)
+        /// The glyph on an empty page.
+        static let glyph = SwiftUI.Font.system(size: 26, weight: .light)
 
-        static let counter = SwiftUI.Font.system(size: 13, design: .monospaced).monospacedDigit()
-        static let counterLarge = SwiftUI.Font.system(size: 28, weight: .medium, design: .monospaced)
+        static let counter = SwiftUI.Font.system(size: 12, design: .monospaced).monospacedDigit()
+        static let counterLarge = SwiftUI.Font.system(size: 26, weight: .medium, design: .monospaced)
             .monospacedDigit()
-        static let heatmapWeekday = named(size: 8, weight: .semibold)
+        static let weekday = sans(size: 9, weight: .semibold)
 
-        static let silkscreenTracking: CGFloat = 0.6
-
-        private static func named(size: CGFloat, weight: SwiftUI.Font.Weight) -> SwiftUI.Font {
-            .custom(display, size: size).weight(weight)
+        private static func sans(size: CGFloat, weight: SwiftUI.Font.Weight) -> SwiftUI.Font {
+            .system(size: size, weight: weight)
         }
 
         private static func serif(size: CGFloat, weight: SwiftUI.Font.Weight) -> SwiftUI.Font {
@@ -173,63 +187,72 @@ enum DS {
     }
 
     enum Size {
-        static let chipWell: CGFloat = 80
+        /// Height of the window's top bar. Tall enough to hold the traffic lights, which
+        /// the hidden title bar leaves floating over the content.
+        static let topBar: CGFloat = 44
+        /// Left gutter clearing the traffic lights.
+        static let trafficLights: CGFloat = 76
+
+        static let controlHeight: CGFloat = 28
+        static let controlMinWidth: CGFloat = 44
+        static let recordWidth: CGFloat = 96
+
+        static let meterWidth: CGFloat = 72
+        static let meterHeight: CGFloat = 22
+        static let meterBars: Int = 32
+
+        static let lamp: CGFloat = 7
+        /// A lamp inside a list row, where 7 is too loud.
+        static let lampSmall: CGFloat = 6
+
+        static let chipWell: CGFloat = 96
         static let editorSheet: CGFloat = 460
-        static let hudWidth: CGFloat = 240
-        static let hudHeight: CGFloat = 48
-        static let waveformWidth: CGFloat = 52
-        static let waveformHeight: CGFloat = 18
-        static let meterWidth: CGFloat = 180
-        static let meterHeight: CGFloat = 48
-        static let toolbarMeterWidth: CGFloat = 128
-        static let toolbarMeterHeight: CGFloat = 32
-        static let toolbarDividerHeight: CGFloat = 34
-        static let statusCopyWidth: CGFloat = 190
-        static let settingsWidth: CGFloat = 580
-        static let settingsHeight: CGFloat = 540
-        static let mainMinWidth: CGFloat = 720
-        static let mainMinHeight: CGFloat = 520
+
+        static let hudWidth: CGFloat = 300
+        static let hudHeight: CGFloat = 44
+        static let hudMeterWidth: CGFloat = 42
+        static let hudMeterHeight: CGFloat = 16
+        static let hudLift: CGFloat = 68
+
+        static let settingsWidth: CGFloat = 560
+        static let settingsHeight: CGFloat = 620
+        static let mainMinWidth: CGFloat = 640
+        static let mainMinHeight: CGFloat = 460
         static let comparisonMinWidth: CGFloat = 560
         static let comparisonMinHeight: CGFloat = 420
-        static let hudLift: CGFloat = 68
-        static let heatmapCell: CGFloat = 10
-        static let heatmapGap: CGFloat = 2
-        static let heatmapWeekdayWidth: CGFloat = 18
-        static let heatmapMonthHeight: CGFloat = 16
-        static let weekBarWidth: CGFloat = 28
-        static let weekBarHeight: CGFloat = 72
-        static let weekBarGap: CGFloat = 8
-        static let heatmapLegendCell: CGFloat = 10
+
+        // The activity page
+        /// The year grid sizes its cells to the width it gets, between these bounds.
+        static let rampCellMin: CGFloat = 7
+        static let rampCellMax: CGFloat = 14
+        static let rampGap: CGFloat = 3
+        static let rampWeekdayWidth: CGFloat = 20
+        static let rampMonthHeight: CGFloat = 15
+        static let rampLegendCell: CGFloat = 10
+        static let weekBarHeight: CGFloat = 64
+        static let statColumn: CGFloat = 116
     }
 
     // MARK: - Radius
 
     enum Radius {
-        static let none: CGFloat = 0
-        static let heatmap: CGFloat = 2
-        static let chip: CGFloat = 6
-        static let control: CGFloat = 8
-        static let panel: CGFloat = 12
-        static let window: CGFloat = 16
+        static let ramp: CGFloat = 2
+        static let chip: CGFloat = 5
+        static let control: CGFloat = 7
+        static let panel: CGFloat = 10
+        static let window: CGFloat = 14
     }
-
-    // MARK: - Border
 
     enum Border {
         static let hairline: CGFloat = 1
-        static let seam: CGFloat = 1
-        static let bevel: CGFloat = 1
+        static let focus: CGFloat = 2
     }
 
     // MARK: - Elevation
 
     enum Shadow {
-        static let raised = Spec(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
-        static let pressed = Spec(color: .black.opacity(0.04), radius: 2, x: 0, y: 0)
-        static let panel = Spec(color: .black.opacity(0.10), radius: 16, x: 0, y: 4)
-        static let window = Spec(color: .black.opacity(0.22), radius: 28, x: 0, y: 10)
-        static let phosphor = Spec(color: DS.Color.violet.opacity(0.20), radius: 8, x: 0, y: 0)
-        static let well = Spec(color: .black.opacity(0.24), radius: 4, x: 0, y: 2)
+        static let card = Spec(color: .black.opacity(0.07), radius: 6, x: 0, y: 1)
+        static let hud = Spec(color: .black.opacity(0.30), radius: 18, x: 0, y: 6)
 
         struct Spec {
             let color: SwiftUI.Color
@@ -244,15 +267,15 @@ enum DS {
     enum Motion {
         static let press = Animation.easeOut(duration: 0.08)
         static let release = Animation.easeOut(duration: 0.14)
-        static let panel = Animation.easeInOut(duration: 0.2)
+        static let panel = Animation.easeInOut(duration: 0.18)
         static let lamp = Animation.easeOut(duration: 0.08)
-        static let needleAttack: TimeInterval = 0.22
-        static let needleRelease: TimeInterval = 0.36
-        static let needleOvershoot: Double = 0.04
+        /// Level-meter ballistics: fast to rise, slow to fall, so it breathes.
+        static let meterAttack: TimeInterval = 0.18
+        static let meterRelease: TimeInterval = 0.34
         static let hud: TimeInterval = 0.18
-        /// How long the main window waits for a modifier after "Set push-to-talk key".
+        /// How long the app waits for a modifier after "Set push-to-talk key".
         static let bindListen: TimeInterval = 8
-        /// Accessibility has no change notification; the UI polls at this interval.
+        /// Accessibility has no change notification; the app polls at this interval.
         static let permissionPoll: TimeInterval = 1
     }
 }

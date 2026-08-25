@@ -7,14 +7,18 @@ struct YappieApp: App {
 
     var body: some Scene {
         // The main window. A `Window` rather than a `WindowGroup`: this app has one front
-        // panel, and letting ⌘N spawn a second copy of a tape deck makes no sense.
+        // panel, and letting ⌘N spawn a second copy of it makes no sense.
         Window("Yappie", id: "main") {
             MainWindow(controller: delegate.controller)
         }
-        .defaultSize(width: 860, height: 620)
+        .defaultSize(width: 900, height: 640)
         .windowResizability(.contentMinSize)
+        // The window's own top bar *is* the title bar. Two stacked strips of chrome before
+        // any content was the single biggest waste of vertical space in the old layout.
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            ViewCommands()
             DictionaryCommands()
         }
 
@@ -24,7 +28,7 @@ struct YappieApp: App {
             SettingsWindow(controller: delegate.controller)
         }
 
-        // Secondary now: status and the hotkey while you're working in another app.
+        // Secondary: status and the hotkey while you're working in another app.
         MenuBarExtra {
             MenuContent(controller: delegate.controller)
         } label: {
@@ -34,7 +38,7 @@ struct YappieApp: App {
         Window("Engine comparison", id: "comparison") {
             ComparisonWindow(controller: delegate.controller)
         }
-        .defaultSize(width: 640, height: 560)
+        .defaultSize(width: 660, height: 580)
         .windowResizability(.contentMinSize)
     }
 }
@@ -44,23 +48,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = DictationController()
     private var hud: HUDPanel?
     private var stateObservation: NSObjectProtocol?
-    private var hotkeyActivationTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // A regular app now: dock icon, app menu, standard windows. The HUD is still a
+        // A regular app: dock icon, app menu, standard windows. The HUD is still a
         // non-activating panel, so dictating into another app never steals its focus — that
         // property belongs to the panel, not to the activation policy.
         NSApp.setActivationPolicy(.regular)
 
         hud = HUDPanel(controller: controller)
 
-        if !controller.activate() {
-            Permissions.promptForAccessibility()
+        // No system prompt fired here on purpose. It fires on *every* launch until the
+        // grant lands, throwing a modal over whatever you were doing, and it says less than
+        // the banner the window now shows in place — which carries the same button.
+        _ = controller.activate()
+
+        // One timer for the whole app. Accessibility has no change notification, so it has
+        // to be polled; it used to be polled from three places at once, two of which also
+        // re-armed the hotkey independently.
+        PermissionMonitor.shared.start { [weak self] in
+            self?.tick()
         }
-        // Accessibility has no change notification. Keep this monitor alive after the
-        // first successful arm as well, so a failed key change can recover without the
-        // Settings window being open.
-        monitorHotkeyActivation()
 
         // Write the dashboard up front so the menu item always opens something, even
         // before the first dictation.
@@ -90,6 +97,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.info("Yappie ready — hold \(Settings.shared.pushToTalkKey.displayName) to dictate")
     }
 
+    /// Runs once a second, off the permission monitor's timer.
+    private func tick() {
+        // Re-arm the moment a grant lands. Nothing else in the app re-arms on a timer.
+        if !controller.hotkeyArmed,
+           !controller.isBindingHotkey,
+           PermissionMonitor.shared.hasAccessibility,
+           controller.activate() {
+            Log.app.info("Accessibility granted — hotkey armed")
+        }
+        // "Today" moves at midnight even if nothing is dictated.
+        RunStore.shared.refreshLedgerIfDayChanged()
+    }
+
     /// `yappie://clear` and `yappie://show`, used by the legacy HTML dashboard and
     /// as a scriptable way to raise the window.
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -110,7 +130,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// value — usable from the app delegate and from a URL handler.
     static func showComparisonWindow() {
         RunStore.shared.reload()
-        if let existing = NSApp.windows.first(where: { $0.title == "Engine comparison" }) {
+        if let existing = NSApp.windows.first(where: { $0.identifier?.rawValue == "comparison" })
+            ?? NSApp.windows.first(where: { $0.title == "Engine comparison" }) {
             existing.makeKeyAndOrderFront(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
@@ -119,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         let isOpen = NSApp.windows.contains { $0.title == "Engine comparison" && $0.isVisible }
         UserDefaults.standard.set(isOpen, forKey: "comparisonWindowOpen")
-        hotkeyActivationTask?.cancel()
+        PermissionMonitor.shared.stop()
         controller.deactivate()
     }
 
@@ -139,20 +160,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+}
 
-    private func monitorHotkeyActivation() {
-        hotkeyActivationTask?.cancel()
-        hotkeyActivationTask = Task { @MainActor in
-            while !Task.isCancelled {
-                if !controller.hotkeyArmed,
-                   !controller.isBindingHotkey,
-                   Permissions.hasAccessibility {
-                    if controller.activate() {
-                        Log.app.info("Accessibility granted — hotkey armed")
-                    }
+/// ⌘1 / ⌘2 / ⌘3 and ⌘F, as real menu items.
+///
+/// A keyboard shortcut on a hidden button works but is undiscoverable; the point of a menu
+/// is that it tells you the shortcut exists.
+private struct ViewCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(before: .toolbar) {
+            ForEach(WorkspaceSection.allCases) { section in
+                Button(section.title) {
+                    openWindow(id: "main")
+                    Navigation.shared.show(section)
                 }
-                try? await Task.sleep(for: .seconds(DS.Motion.permissionPoll))
+                .keyboardShortcut(section.shortcut, modifiers: .command)
             }
+
+            Divider()
+
+            Button("Find…") {
+                openWindow(id: "main")
+                Navigation.shared.focusSearch()
+            }
+            .keyboardShortcut("f", modifiers: .command)
+
+            Divider()
         }
     }
 }
@@ -176,32 +211,13 @@ private struct DictionaryCommands: Commands {
     }
 }
 
+/// The menu bar: state, the hold key, and the toggles worth flipping mid-task. Everything
+/// here also lives in Settings, which is the complete surface.
 private struct MenuContent: View {
     @Bindable var controller: DictationController
     @State private var settings = Settings.shared
+    @State private var permissions = PermissionMonitor.shared
     @Environment(\.openWindow) private var openWindow
-    @State private var isPreloadingParakeet = false
-    @State private var parakeetOnDisk = ParakeetModels.isDownloaded
-
-    private var parakeetStatus: String {
-        if isPreloadingParakeet { return "Loading Parakeet models…" }
-        // Reflects what's actually on disk, not just what this menu instance has done.
-        return parakeetOnDisk ? "Parakeet models installed ✓" : "Download Parakeet models…"
-    }
-
-    private func preloadParakeet() {
-        guard !isPreloadingParakeet else { return }
-        isPreloadingParakeet = true
-        Task {
-            do {
-                _ = try await ParakeetModels.shared.manager()
-                parakeetOnDisk = ParakeetModels.isDownloaded
-            } catch {
-                Log.speech.error("Parakeet preload failed: \(error.localizedDescription)")
-            }
-            isPreloadingParakeet = false
-        }
-    }
 
     var body: some View {
         Text(controller.hotkeyArmed
@@ -223,8 +239,6 @@ private struct MenuContent: View {
         }
         .disabled(controller.isBindingHotkey)
 
-        Toggle("Compare mode (both engines)", isOn: $settings.compareMode)
-
         if !settings.compareMode {
             Picker("Engine", selection: $settings.engine) {
                 ForEach(SpeechEngineChoice.allCases, id: \.self) { choice in
@@ -233,19 +247,16 @@ private struct MenuContent: View {
             }
         }
 
+        Toggle("Compare mode (every engine)", isOn: $settings.compareMode)
         Toggle("Clean up text", isOn: $settings.cleanupEnabled)
-
-        if settings.cleanupEnabled {
-            Toggle("Smart cleanup (on-device AI)", isOn: $settings.smartCleanup)
-                .disabled(!FoundationModelFormatter.isAvailable)
-            if let reason = FoundationModelFormatter.unavailableReason {
-                Text(reason).font(.caption)
-            }
-        }
-
         Toggle("Sound", isOn: $settings.soundEnabled)
 
         Divider()
+
+        Button("Open Yappie") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
 
         Button("Add dictionary word…") {
             DictionaryStore.shared.beginAdd()
@@ -253,19 +264,12 @@ private struct MenuContent: View {
             NSApp.activate(ignoringOtherApps: true)
         }
 
-        Button("Show comparison window") {
+        Button("Engine comparison") {
             RunStore.shared.reload()
             openWindow(id: "comparison")
             NSApp.activate(ignoringOtherApps: true)
         }
         .keyboardShortcut("d")
-
-        // Downloading ~470 MB on the first hold would look like a hang, so offer to do it
-        // deliberately instead.
-        if settings.engine == .parakeet {
-            Button(parakeetStatus) { preloadParakeet() }
-                .disabled(isPreloadingParakeet || parakeetOnDisk)
-        }
 
         if !controller.hotkeyArmed {
             Button("Grant Accessibility…") {
@@ -273,9 +277,11 @@ private struct MenuContent: View {
                 Permissions.openAccessibilitySettings()
             }
         }
-        if !Permissions.hasMicrophone {
+        if !permissions.hasMicrophone {
             Button("Grant Microphone…") { Permissions.openMicrophoneSettings() }
         }
+
+        Divider()
 
         Button("Quit Yappie") { NSApp.terminate(nil) }
             .keyboardShortcut("q")

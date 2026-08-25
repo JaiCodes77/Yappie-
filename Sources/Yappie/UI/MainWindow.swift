@@ -5,114 +5,79 @@ import SwiftUI
 
 /// The app's main window.
 ///
-/// A compact control bar above the phosphor page holding transcripts, the dictionary,
-/// or the activity heatmap. The page is the product: that's where spoken words land.
+/// One bar of chrome across the top — it *is* the title bar, which is hidden — and below it
+/// the page, where spoken words land. Three sections share the page: transcriptions, the
+/// dictionary, and activity.
 struct MainWindow: View {
     @Bindable var controller: DictationController
     @State private var store = DictionaryStore.shared
     @State private var runs = RunStore.shared
-
-    @State private var section: Section = .transcriptions
-
-    enum Section: String, CaseIterable, Identifiable {
-        case transcriptions
-        case dictionary
-        case activity
-
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .transcriptions: "Transcriptions"
-            case .dictionary: "Dictionary"
-            case .activity: "Activity"
-            }
-        }
-    }
+    @State private var navigation = Navigation.shared
 
     var body: some View {
-        ZStack {
-            DS.Color.chassis.ignoresSafeArea()
+        VStack(spacing: 0) {
+            TopBar(controller: controller)
+            Rule()
 
             VStack(spacing: DS.Space.base) {
-                ControlBar(controller: controller)
-
                 if !controller.hotkeyArmed {
-                    AccessibilityStrip(controller: controller)
+                    AccessibilityBanner(controller: controller)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                Well {
+                Page {
                     VStack(spacing: 0) {
-                        pageHeader
+                        SectionTabs(
+                            section: Binding(
+                                get: { navigation.section },
+                                set: { navigation.section = $0 }
+                            ),
+                            ledger: runs.ledger
+                        )
+                        Rule(onPage: true)
 
-                        Group {
-                            switch section {
-                            case .transcriptions: TranscriptionList()
-                            case .dictionary: DictionaryPanel()
-                            case .activity: ActivityPanel()
-                            }
+                        switch navigation.section {
+                        case .transcriptions: TranscriptionsPanel()
+                        case .dictionary: DictionaryPanel()
+                        case .activity: ActivityPanel()
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxHeight: .infinity)
-                .layoutPriority(1)
             }
-            .padding(DS.Space.roomy)
+            .padding(DS.Space.base)
         }
+        .background(DS.Color.chassis)
+        // The hidden title bar still reserves its safe area, which left a blank strip above
+        // the top bar with the traffic lights floating in it. Ignoring it lets the bar *be*
+        // the title bar, with the lights sitting in its leading gutter.
+        .ignoresSafeArea(.container, edges: .top)
         .frame(minWidth: DS.Size.mainMinWidth, minHeight: DS.Size.mainMinHeight)
+        .onChange(of: store.editorRequest?.id) { _, id in
+            // Adding a word from the menu bar or ⌘⇧L should land you where the word will be.
+            if id != nil { navigation.section = .dictionary }
+        }
         .sheet(item: Binding(
             get: { store.editorRequest },
             set: { store.editorRequest = $0 }
         )) { request in
             DictionaryEditor(request: request) { entry in
                 store.saveFromEditor(entry, request: request)
-                section = .dictionary
+                navigation.section = .dictionary
             }
         }
-    }
-
-    private var pageHeader: some View {
-        HStack(spacing: DS.Space.tight) {
-            ForEach(Section.allCases) { candidate in
-                Button {
-                    withAnimation(DS.Motion.panel) { section = candidate }
-                } label: {
-                    Silkscreen(
-                        text: candidate.title,
-                        color: section == candidate ? DS.Color.inkOnDeck : DS.Color.inkOnDeckMuted
-                    )
-                    .padding(.horizontal, DS.Space.base)
-                    .padding(.vertical, DS.Space.snug)
-                    .background(
-                        section == candidate ? DS.Color.copperSoft : Color.clear,
-                        in: .rect(cornerRadius: DS.Radius.chip)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer()
-            ActivityHeaderChip(ledger: activityLedger)
-        }
-        .padding(.horizontal, DS.Space.snug)
-        .padding(.vertical, DS.Space.tight)
-        .background(DS.Color.deck)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(DS.Color.deckHairline)
-                .frame(height: DS.Border.seam)
-        }
-    }
-
-    private var activityLedger: ActivityLedger {
-        ActivityLedger(utterances: runs.runs.map(\.spoken))
     }
 }
 
-// MARK: - Control bar
+// MARK: - Top bar
 
-/// Recording and push-to-talk share one status surface, so the same activity never reads
-/// as "idle" in one place and "listening" in another.
-private struct ControlBar: View {
+/// Transport, level, clock and status in one strip that doubles as the title bar.
+///
+/// The old bar carried a Record button, a separate "Rec" lamp and label, a divider, the
+/// meter, the clock, a two-line status block pinned to a fixed 190pt, and the key menu —
+/// about 740pt of content in a window whose minimum was 720. It clipped. This says each
+/// thing once and lets the status line be the part that gives.
+private struct TopBar: View {
     @Bindable var controller: DictationController
     @State private var settings = Settings.shared
 
@@ -127,12 +92,7 @@ private struct ControlBar: View {
 
     var body: some View {
         HStack(spacing: DS.Space.base) {
-            TransportKey(
-                title: recordButtonTitle,
-                systemImage: isCapturing ? "stop.fill" : "circle.fill",
-                isEngaged: isCapturing,
-                isEnabled: !isFinishing
-            ) {
+            RecordButton(isCapturing: isCapturing, isBusy: isFinishing) {
                 if isCapturing {
                     controller.stopButtonRecording()
                 } else {
@@ -140,70 +100,19 @@ private struct ControlBar: View {
                 }
             }
 
-            HStack(spacing: DS.Space.tight) {
-                Lamp(color: DS.Color.record, isLit: isCapturing)
-                Silkscreen(text: "Rec")
-            }
+            instrument
 
-            divider
+            Spacer(minLength: DS.Space.snug)
 
-            VUMeter(level: controller.level, isActive: isCapturing)
-                .frame(width: DS.Size.toolbarMeterWidth, height: DS.Size.toolbarMeterHeight)
+            status
 
-            DeckWindow {
-                Readout(text: counterText)
-                    .padding(.horizontal, DS.Space.snug)
-                    .padding(.vertical, DS.Space.tight)
-            }
-
-            Spacer(minLength: DS.Space.base)
-
-            HStack(spacing: DS.Space.snug) {
-                Lamp(color: statusColor, isLit: statusIsLit)
-
-                VStack(alignment: .leading, spacing: DS.Space.hair) {
-                    Silkscreen(text: statusTitle)
-                    Text(statusDetail)
-                        .font(DS.Font.label)
-                        .foregroundStyle(DS.Color.inkSecondary)
-                        .lineLimit(1)
-                        .frame(width: DS.Size.statusCopyWidth, alignment: .leading)
-                }
-
-                Menu {
-                    ForEach(PushToTalkKey.allCases, id: \.self) { key in
-                        Button {
-                            settings.pushToTalkKey = key
-                            _ = controller.reloadHotkey()
-                        } label: {
-                            if settings.pushToTalkKey == key {
-                                Label(key.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(key.displayName)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: DS.Space.tight) {
-                        Silkscreen(text: settings.pushToTalkKey.displayName)
-                        Image(systemName: "chevron.down")
-                            .font(DS.Font.iconTiny)
-                            .foregroundStyle(DS.Color.inkSecondary)
-                    }
-                    .frame(height: DS.Material.keyHeight)
-                    .padding(.horizontal, DS.Space.base)
-                    .background(DS.Color.cap, in: .rect(cornerRadius: DS.Radius.control))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DS.Radius.control)
-                            .strokeBorder(DS.Color.seam, lineWidth: DS.Border.hairline)
-                    )
-                }
-                .menuStyle(.borderlessButton)
-                .disabled(controller.isBindingHotkey)
-            }
+            holdKey
         }
-        .padding(DS.Space.base)
-        .background(BrushedPanel())
+        // The traffic lights float over the content once the title bar is hidden.
+        .padding(.leading, DS.Size.trafficLights)
+        .padding(.trailing, DS.Space.base)
+        .frame(height: DS.Size.topBar)
+        .background(DS.Color.bar)
         .onChange(of: controller.state.isActive) { _, active in
             startedAt = active ? Date() : nil
             if !active { elapsed = 0 }
@@ -217,46 +126,88 @@ private struct ControlBar: View {
         }
     }
 
-    private var divider: some View {
-        Rectangle()
-            .fill(DS.Color.seam)
-            .frame(width: DS.Border.seam, height: DS.Size.toolbarDividerHeight)
-    }
+    /// Meter and clock share one recessed field, so they read as one instrument rather
+    /// than two unrelated widgets.
+    private var instrument: some View {
+        HStack(spacing: DS.Space.snug) {
+            LevelMeter(level: controller.level, isActive: isCapturing, onPage: true)
+                .frame(width: DS.Size.meterWidth, height: DS.Size.meterHeight)
 
-    private var recordButtonTitle: String {
-        if isFinishing { return "Finishing…" }
-        return isCapturing ? "Stop" : "Record"
-    }
-
-    private var statusTitle: String {
-        switch controller.state {
-        case .starting, .listening: "Listening"
-        case .finishing: "Transcribing"
-        case .error: "Needs attention"
-        case .idle: controller.hotkeyArmed ? "Ready" : "Not ready"
+            Readout(
+                text: counterText,
+                color: isCapturing ? DS.Color.record : DS.Color.inkOnPageMuted
+            )
         }
+        .padding(.horizontal, DS.Space.snug)
+        .padding(.vertical, DS.Space.tight)
+        .background(DS.Color.page, in: .rect(cornerRadius: DS.Radius.control))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.control)
+                .strokeBorder(
+                    isCapturing ? DS.Color.record.opacity(DS.Color.Alpha.meterRest) : DS.Color.pageEdge,
+                    lineWidth: DS.Border.hairline
+                )
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isCapturing ? "Recording, \(counterText)" : "Level meter, idle")
     }
 
-    private var statusDetail: String {
+    /// One line, free to truncate. It's the only thing here whose width isn't essential.
+    private var status: some View {
+        HStack(spacing: DS.Space.snug) {
+            Lamp(color: statusColor, isLit: statusIsLit)
+            Text(statusText)
+                .font(DS.Font.label)
+                .foregroundStyle(isError ? DS.Color.record : DS.Color.inkSecondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .animation(DS.Motion.release, value: statusText)
+        }
+        .help(statusText)
+        .layoutPriority(-1)
+    }
+
+    /// Which key to hold, stated — not a third place to change it.
+    ///
+    /// The bar used to carry a full key picker, duplicating the one in Settings and the one
+    /// in the menu bar. What you actually need here is the answer to "which key is it
+    /// again?", so this shows the key and opens Settings if you want to change it.
+    private var holdKey: some View {
+        SettingsLink {
+            HStack(spacing: DS.Space.tight) {
+                Eyebrow(text: "Hold", color: DS.Color.inkSecondary)
+                KeyCap(text: settings.pushToTalkKey.displayName, isLit: isCapturing)
+            }
+            .fixedSize()
+        }
+        .buttonStyle(PressableButtonStyle())
+        .help("Which key to hold while you talk — click to change it in Settings")
+    }
+
+    private var isError: Bool {
+        if case .error = controller.state { return true }
+        return false
+    }
+
+    private var statusText: String {
         switch controller.state {
         case .starting, .listening:
-            "Release \(settings.pushToTalkKey.displayName) to finish"
+            "Listening — release \(settings.pushToTalkKey.displayName)"
         case .finishing:
-            controller.transcript.isEmpty ? "Cleaning up your words…" : controller.transcript
+            controller.transcript.isEmpty ? "Transcribing…" : controller.transcript
         case .error(let message):
             message
         case .idle:
-            controller.hotkeyArmed
-                ? "Hold \(settings.pushToTalkKey.displayName) anywhere"
-                : "Accessibility needs attention"
+            controller.hotkeyArmed ? "Ready" : "Accessibility needed"
         }
     }
 
     private var statusColor: Color {
         switch controller.state {
         case .starting, .listening: DS.Color.record
-        case .finishing, .error: DS.Color.copper
-        case .idle: controller.hotkeyArmed ? DS.Color.meterGreen : DS.Color.inkSecondary
+        case .finishing: DS.Color.copper
+        case .error: DS.Color.record
+        case .idle: controller.hotkeyArmed ? DS.Color.positive : DS.Color.inkSecondary
         }
     }
 
@@ -270,344 +221,176 @@ private struct ControlBar: View {
     }
 }
 
-/// The permission failure stays actionable without consuming half the window. When
-/// `AXIsProcessTrusted` is true but the tap still fails, the signed build changed and the
-/// old TCC row must be refreshed.
-private struct AccessibilityStrip: View {
-    @Bindable var controller: DictationController
-    @State private var accessibilityTrusted = Permissions.hasAccessibility
+// MARK: - Section tabs
+
+private struct SectionTabs: View {
+    @Binding var section: WorkspaceSection
+    let ledger: ActivityLedger
 
     var body: some View {
-        HStack(spacing: DS.Space.base) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(DS.Font.iconSmall)
-                .foregroundStyle(DS.Color.copper)
-
-            VStack(alignment: .leading, spacing: DS.Space.hair) {
-                Silkscreen(text: title, color: DS.Color.copper)
-                Text(detail)
-                    .font(DS.Font.label)
-                    .foregroundStyle(DS.Color.inkSecondary)
-                    .lineLimit(2)
+        HStack(spacing: DS.Space.hair) {
+            ForEach(WorkspaceSection.allCases) { candidate in
+                Tab(candidate: candidate, isSelected: candidate == section) {
+                    withAnimation(DS.Motion.panel) { section = candidate }
+                }
             }
 
             Spacer(minLength: DS.Space.base)
 
-            TransportKey(title: "Try again") {
-                accessibilityTrusted = Permissions.hasAccessibility
-                _ = controller.reloadHotkey()
+            ActivitySummary(ledger: ledger)
+        }
+        .padding(.horizontal, DS.Space.snug)
+        .padding(.vertical, DS.Space.snug)
+    }
+
+    private struct Tab: View {
+        let candidate: WorkspaceSection
+        let isSelected: Bool
+        let action: () -> Void
+
+        @State private var isHovering = false
+
+        var body: some View {
+            Button(action: action) {
+                HStack(spacing: DS.Space.tight) {
+                    Image(systemName: candidate.symbol)
+                        .font(DS.Font.iconTiny)
+                    Text(candidate.title)
+                        .font(DS.Font.eyebrow)
+                        .tracking(DS.Font.eyebrowTracking)
+                }
+                .foregroundStyle(isSelected ? DS.Color.copper : DS.Color.inkOnPageMuted)
+                .padding(.horizontal, DS.Space.base)
+                .padding(.vertical, DS.Space.snug)
+                .background(background)
+                .contentShape(.rect(cornerRadius: DS.Radius.chip))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        }
+
+        private var background: some View {
+            RoundedRectangle(cornerRadius: DS.Radius.chip)
+                .fill(fill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.chip)
+                        .strokeBorder(
+                            isSelected ? DS.Color.copper.opacity(DS.Color.Alpha.edge) : Color.clear,
+                            lineWidth: DS.Border.hairline
+                        )
+                )
+        }
+
+        private var fill: Color {
+            if isSelected { return DS.Color.copperSoft }
+            return isHovering ? DS.Color.pageHover : .clear
+        }
+    }
+}
+
+/// Today's words and the streak, visible on every tab so the number you care about isn't
+/// hidden behind a tab you have to remember to visit.
+private struct ActivitySummary: View {
+    let ledger: ActivityLedger
+
+    var body: some View {
+        HStack(spacing: DS.Space.snug) {
+            figure(ledger.wordsToday.formatted(), "words today")
+            Rectangle()
+                .fill(DS.Color.pageRule)
+                .frame(width: DS.Border.hairline, height: DS.Space.base)
+            figure(ledger.currentStreak == 0 ? "—" : "\(ledger.currentStreak)", "day streak")
+        }
+        .padding(.trailing, DS.Space.tight)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibility)
+    }
+
+    private func figure(_ value: String, _ label: String) -> some View {
+        HStack(spacing: DS.Space.tight) {
+            Readout(text: value)
+            Eyebrow(text: label, color: DS.Color.inkOnPageFaint)
+        }
+    }
+
+    private var accessibility: String {
+        let today = "\(ledger.wordsToday.formatted()) words today"
+        if ledger.currentStreak == 0 { return "\(today), no streak" }
+        let days = ledger.currentStreak == 1 ? "1 day streak" : "\(ledger.currentStreak) day streak"
+        return "\(today), \(days)"
+    }
+}
+
+// MARK: - Accessibility banner
+
+/// The permission failure, stated once. `PushToTalkSetup` in Settings used to carry its own
+/// near-identical copy of this; both now come from here.
+struct AccessibilityBanner: View {
+    @Bindable var controller: DictationController
+    @State private var permissions = PermissionMonitor.shared
+
+    /// `AXIsProcessTrusted` is true but the tap still failed: the signature changed and the
+    /// stored TCC requirement no longer matches, so the grant has to be re-made.
+    private var isStaleGrant: Bool { permissions.hasAccessibility }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DS.Space.base) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(DS.Font.iconSmall)
+                .foregroundStyle(DS.Color.caution)
+                .padding(.top, DS.Space.hair)
+
+            VStack(alignment: .leading, spacing: DS.Space.tight) {
+                Text(title)
+                    .font(DS.Font.title)
+                    .foregroundStyle(DS.Color.ink)
+                Text(detail)
+                    .font(DS.Font.label)
+                    .foregroundStyle(DS.Color.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: DS.Space.snug) {
+                    PillButton(
+                        title: isStaleGrant ? "Open Accessibility" : "Grant access",
+                        isEngaged: true
+                    ) {
+                        Permissions.promptForAccessibility()
+                        Permissions.openAccessibilitySettings()
+                    }
+                    PillButton(title: "Try again") {
+                        permissions.refresh()
+                        _ = controller.reloadHotkey()
+                    }
+                }
+                .padding(.top, DS.Space.tight)
             }
 
-            TransportKey(
-                title: accessibilityTrusted ? "Open Accessibility" : "Grant access",
-                isEngaged: true,
-                engagedColor: DS.Color.copper
-            ) {
-                Permissions.promptForAccessibility()
-                Permissions.openAccessibilitySettings()
-            }
+            Spacer(minLength: 0)
         }
-        .padding(DS.Space.base)
-        .background(DS.Color.copperSoft, in: .rect(cornerRadius: DS.Radius.control))
+        .padding(DS.Space.roomy)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Color.copperSoft, in: .rect(cornerRadius: DS.Radius.panel))
         .overlay(
-            RoundedRectangle(cornerRadius: DS.Radius.control)
-                .strokeBorder(DS.Color.deckEdge, lineWidth: DS.Border.hairline)
+            RoundedRectangle(cornerRadius: DS.Radius.panel)
+                .strokeBorder(DS.Color.caution.opacity(DS.Color.Alpha.meterRest), lineWidth: DS.Border.hairline)
         )
-        .task {
-            while !Task.isCancelled {
-                accessibilityTrusted = Permissions.hasAccessibility
-                try? await Task.sleep(for: .seconds(DS.Motion.permissionPoll))
-            }
-        }
     }
 
     private var title: String {
-        accessibilityTrusted ? "Refresh Accessibility access" : "Allow Accessibility access"
+        isStaleGrant ? "Accessibility needs refreshing" : "Yappie needs Accessibility"
     }
 
     private var detail: String {
-        if accessibilityTrusted {
-            return "macOS still has a grant for an older Yappie build. Remove Yappie in Accessibility, add /Applications/Yappie.app again, then switch it on."
+        if isStaleGrant {
+            return "macOS lists Accessibility as on, but the grant belongs to an older build. "
+                + "Remove Yappie in Privacy & Security ▸ Accessibility, add /Applications/Yappie.app "
+                + "again, then switch it on."
         }
-        return "Add /Applications/Yappie.app in Privacy & Security ▸ Accessibility, then switch it on."
-    }
-}
-
-// MARK: - Transcriptions
-
-/// Past transcriptions, searchable, each copyable.
-private struct TranscriptionList: View {
-    @State private var store = RunStore.shared
-    @State private var query = ""
-    @State private var isConfirmingClear = false
-
-    private var runs: [DictationRun] {
-        let all = store.runs.reversed().map { $0 }
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return all }
-        return all.filter { $0.text.localizedStandardContains(trimmed) }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            SearchField(text: $query, placeholder: "Search transcriptions")
-
-            if runs.isEmpty {
-                EmptyPanel(
-                    label: store.runs.isEmpty ? "No recordings" : "No matches",
-                    detail: store.runs.isEmpty
-                        ? "Hold \(Settings.shared.pushToTalkKey.displayName) and talk, or press Record."
-                        : "Try a different search."
-                )
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(runs) { run in
-                            TranscriptionRow(run: run) {
-                                withAnimation(DS.Motion.panel) { RunLog.delete(run) }
-                            }
-                        }
-                    }
-                    .padding(DS.Space.base)
-                }
-                footer
-            }
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Silkscreen(
-                text: "\(store.runs.count) recording\(store.runs.count == 1 ? "" : "s")",
-                color: DS.Color.inkOnDeckMuted
-            )
-            Spacer()
-            Button { isConfirmingClear = true } label: {
-                Silkscreen(text: "Delete all", color: DS.Color.inkOnDeckMuted)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, DS.Space.base)
-        .padding(.vertical, DS.Space.snug)
-        .background(DS.Color.deck)
-        .overlay(alignment: .top) {
-            Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
-        }
-        // Confirmed, unlike a single row: one row is trivially re-recorded, the whole
-        // history is not, and there's no undo.
-        .confirmationDialog(
-            "Delete all \(store.runs.count) recordings?",
-            isPresented: $isConfirmingClear,
-            titleVisibility: .visible
-        ) {
-            Button("Delete All", role: .destructive) { RunLog.clear() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This can't be undone.")
-        }
-    }
-}
-
-private struct TranscriptionRow: View {
-    let run: DictationRun
-    let onDelete: () -> Void
-
-    @State private var didCopy = false
-    @State private var isHovering = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DS.Space.snug) {
-            HStack(spacing: DS.Space.snug) {
-                Silkscreen(text: run.engine, color: DS.Color.inkOnDeckStrong)
-                Readout(text: String(format: "%.2fs", run.processSeconds))
-                    .foregroundStyle(DS.Color.inkOnDeckMuted)
-                Spacer()
-                Text(run.date, style: .time)
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.inkOnDeckMuted)
-                copyButton
-                teachButton
-                deleteButton
-                    .opacity(isHovering ? 1 : 0)
-            }
-
-            Text(run.text)
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.inkOnDeck)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let corrections = run.corrections, !corrections.isEmpty {
-                CorrectionBadges(corrections: corrections)
-            }
-        }
-        .padding(DS.Space.base)
-        .background(isHovering ? DS.Color.deckHover : Color.clear)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(DS.Color.deckHairline)
-                .frame(height: DS.Border.hairline)
-        }
-        .onHover { isHovering = $0 }
-        .contextMenu {
-            Button("Teach dictionary…") {
-                DictionaryStore.shared.beginTeach(transcript: run.text)
-            }
-            Button("Copy") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(run.text, forType: .string)
-            }
-        }
-    }
-
-    private var copyButton: some View {
-        Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(run.text, forType: .string)
-            didCopy = true
-            Task {
-                try? await Task.sleep(for: .seconds(1.4))
-                didCopy = false
-            }
-        } label: {
-            Silkscreen(
-                text: didCopy ? "Copied" : "Copy",
-                color: didCopy ? DS.Color.inkOnDeck : DS.Color.inkOnDeckMuted
-            )
-            .padding(.horizontal, DS.Space.snug)
-            .padding(.vertical, DS.Space.tight)
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.chip)
-                    .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Opens the dictionary editor with this transcript as tappable words, so a misspelling
-    /// can be taught without retyping it.
-    private var teachButton: some View {
-        Button {
-            DictionaryStore.shared.beginTeach(transcript: run.text)
-        } label: {
-            Silkscreen(
-                text: "Teach",
-                color: DS.Color.inkOnDeckMuted
-            )
-            .padding(.horizontal, DS.Space.snug)
-            .padding(.vertical, DS.Space.tight)
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.chip)
-                    .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
-            )
-        }
-        .buttonStyle(.plain)
-        .help("Add words from this transcript to the dictionary")
-        .disabled(run.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-    }
-
-    /// Appears on hover only, and deletes without a confirmation — a single transcript is
-    /// cheap to redo, and a dialog on every row would make tidying up tedious. The
-    /// irreversible one is "Delete all", which does confirm.
-    private var deleteButton: some View {
-        Button(action: onDelete) {
-            Image(systemName: "trash")
-                .font(DS.Font.iconTiny)
-                .foregroundStyle(DS.Color.inkOnDeckMuted)
-                .padding(.horizontal, DS.Space.snug)
-                .padding(.vertical, DS.Space.tight)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.chip)
-                        .strokeBorder(DS.Color.deckHairline, lineWidth: DS.Border.hairline)
-                )
-        }
-        .buttonStyle(.plain)
-        .help("Delete this transcription")
-    }
-}
-
-/// Shows that the dictionary fired, and on what. Without this the dictionary is invisible
-/// and you can't tell a rule that works from one that never matches.
-private struct CorrectionBadges: View {
-    let corrections: [AppliedCorrection]
-
-    var body: some View {
-        HStack(spacing: DS.Space.snug) {
-            Silkscreen(text: "Corrected", color: DS.Color.meterAmber)
-            ForEach(corrections, id: \.self) { correction in
-                HStack(spacing: DS.Space.tight) {
-                    Text(correction.from)
-                        .strikethrough()
-                        .foregroundStyle(DS.Color.inkOnDeck.opacity(0.5))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(DS.Color.inkOnDeck.opacity(0.4))
-                    Text(correction.to)
-                        .foregroundStyle(DS.Color.inkOnDeck)
-                    if correction.count > 1 {
-                        Text("×\(correction.count)")
-                            .foregroundStyle(DS.Color.inkOnDeck.opacity(0.5))
-                    }
-                }
-                .font(DS.Font.caption)
-                .padding(.horizontal, DS.Space.snug)
-                .padding(.vertical, DS.Space.hair)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.chip)
-                        .strokeBorder(DS.Color.meterAmber.opacity(0.35), lineWidth: DS.Border.hairline)
-                )
-            }
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Shared
-
-struct SearchField: View {
-    @Binding var text: String
-    let placeholder: String
-
-    var body: some View {
-        HStack(spacing: DS.Space.snug) {
-            Image(systemName: "magnifyingglass")
-                .font(DS.Font.iconSmall)
-                .foregroundStyle(DS.Color.inkOnDeckMuted)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.inkOnDeck)
-            if !text.isEmpty {
-                Button { text = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(DS.Color.inkOnDeckFaint)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, DS.Space.base)
-        .padding(.vertical, DS.Space.snug)
-        .background(DS.Color.deck)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(DS.Color.deckHairline).frame(height: DS.Border.seam)
-        }
-    }
-}
-
-struct EmptyPanel: View {
-    let label: String
-    let detail: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DS.Space.snug) {
-            Silkscreen(text: label, large: true, color: DS.Color.inkOnDeckMuted)
-            Text(detail)
-                .font(DS.Font.label)
-                .foregroundStyle(DS.Color.inkOnDeckFaint)
-        }
-        .padding(.horizontal, DS.Space.roomy)
-        .padding(.top, DS.Space.panel)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Being listed with the switch off is the usual failure mode after "Grant access" —
+        // the OS adds the row but leaves the toggle grey. Say that explicitly.
+        return "Being listed isn’t enough. In Privacy & Security ▸ Accessibility, find Yappie "
+            + "and flip its switch ON (blue). Then click Try again — the hold key arms itself."
     }
 }

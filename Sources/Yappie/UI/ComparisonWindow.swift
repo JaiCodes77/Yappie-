@@ -1,119 +1,93 @@
 import SwiftUI
 
-/// Live-updating store behind the comparison window.
-@MainActor
-@Observable
-final class RunStore {
-    static let shared = RunStore()
-
-    private(set) var runs: [DictationRun] = []
-
-    private init() { reload() }
-
-    func reload() {
-        runs = RunLog.load()
-    }
-
-    var comparisons: [[DictationRun]] {
-        Dictionary(grouping: runs.filter { $0.group != nil }, by: { $0.group! })
-            .values
-            .sorted { ($0.first?.date ?? .distantPast) > ($1.first?.date ?? .distantPast) }
-    }
-
-    var singles: [DictationRun] {
-        runs.filter { $0.group == nil }.reversed()
-    }
-}
-
+/// Engine A/B results, one card per recording.
+///
+/// The timings are not a like-for-like ranking and the window says so: Apple and Parakeet
+/// are timed on local compute with the clock started after model load, while Wispr Flow
+/// reports its own end-to-end latency including a network round trip.
 struct ComparisonWindow: View {
     @Bindable var controller: DictationController
     @State private var store = RunStore.shared
     @State private var settings = Settings.shared
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Space.roomy) {
-                header
-                recordBar
+        VStack(spacing: 0) {
+            header
+            Rule()
 
-                if store.runs.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(Array(store.comparisons.enumerated()), id: \.offset) { _, group in
-                        ComparisonCard(runs: group)
-                    }
-                    ForEach(Array(store.singles.enumerated()), id: \.offset) { _, run in
-                        SingleCard(run: run)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Space.base) {
+                    if store.runs.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(Array(store.comparisons.enumerated()), id: \.offset) { _, group in
+                            ComparisonCard(runs: group)
+                        }
+                        ForEach(Array(store.singles.enumerated()), id: \.offset) { _, run in
+                            SingleCard(run: run)
+                        }
                     }
                 }
+                .padding(DS.Space.roomy)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(DS.Space.wide)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(minWidth: DS.Size.comparisonMinWidth, minHeight: DS.Size.comparisonMinHeight)
         .background(DS.Color.chassis)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: DS.Space.tight) {
-                Silkscreen(text: "Engine comparison", large: true, color: DS.Color.ink)
-                Text("\(store.runs.count) recording\(store.runs.count == 1 ? "" : "s")")
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.inkSecondary)
-            }
-            Spacer()
-            if !store.runs.isEmpty {
-                TransportKey(title: "Clear", engagedColor: DS.Color.copper) {
-                    RunLog.clear()
-                    store.reload()
-                }
-            }
-        }
-    }
-
-    private var recordBar: some View {
-        let isRecording = controller.state.isActive
-
-        return VStack(alignment: .leading, spacing: DS.Space.snug) {
-            TransportKey(
-                title: isRecording ? "Stop" : "Record all three",
-                systemImage: isRecording ? "stop.fill" : "circle.fill",
-                isEngaged: isRecording
+        HStack(spacing: DS.Space.base) {
+            RecordButton(
+                isCapturing: controller.state.isActive,
+                isBusy: controller.state == .finishing
             ) {
-                if isRecording {
+                if controller.state.isActive {
                     controller.stopButtonRecording()
                 } else {
                     controller.startButtonRecording()
                 }
             }
 
-            Text(statusLine(isRecording: isRecording))
-                .font(DS.Font.label)
-                .foregroundStyle(DS.Color.inkSecondary)
+            VStack(alignment: .leading, spacing: DS.Space.hair) {
+                Eyebrow(text: settings.compareMode ? "Compare mode on" : "Compare mode off")
+                Text(statusLine)
+                    .font(DS.Font.label)
+                    .foregroundStyle(DS.Color.inkSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: DS.Space.snug)
+
+            if !store.runs.isEmpty {
+                PillButton(title: "Clear", systemImage: "trash") {
+                    RunLog.clear()
+                }
+            }
         }
+        .padding(DS.Space.base)
+        .background(DS.Color.bar)
     }
 
-    private func statusLine(isRecording: Bool) -> String {
-        if isRecording { return "Recording — click Stop when you're done talking." }
+    private var statusLine: String {
+        if controller.state.isActive { return "Recording — click Stop when you're done talking." }
         if !controller.transcript.isEmpty { return controller.transcript }
+        if !settings.compareMode { return "Turn on compare mode in Settings to run every engine." }
         return WisprReader.isInstalled
-            ? "Click Record, talk, click Stop. Apple, Parakeet and Wispr Flow all hear it."
-            : "Click Record, talk, click Stop. Wispr Flow isn't installed, so it's Apple vs Parakeet."
+            ? "Apple, Parakeet and Wispr Flow all hear the same recording."
+            : "Apple vs Parakeet — Wispr Flow isn't installed."
     }
 
     private var emptyState: some View {
-        VStack(spacing: DS.Space.snug) {
-            Silkscreen(text: "Hold \(settings.pushToTalkKey.displayName) and talk", large: true)
-            Text(settings.compareMode
-                 ? "Both engines run on that one recording and appear here."
-                 : "Turn on Compare mode in the menu bar to see both engines at once.")
-                .font(DS.Font.label)
-                .foregroundStyle(DS.Color.inkSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DS.Space.panel)
+        EmptyPage(
+            symbol: "arrow.triangle.2.circlepath",
+            title: "No recordings to compare",
+            detail: settings.compareMode
+                ? "Hold \(settings.pushToTalkKey.displayName) and talk. Every engine runs on that one recording and appears here."
+                : "Compare mode is off, so each recording uses one engine. Turn it on in Settings to see them side by side."
+        )
+        .frame(minHeight: 220)
     }
 }
 
@@ -145,37 +119,45 @@ private struct ComparisonCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DS.Space.base) {
-            HStack {
-                Text(runs.first.map { "\($0.date.formatted(date: .omitted, time: .standard)) · held \($0.audioSeconds, format: .number.precision(.fractionLength(1)))s" } ?? "")
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.inkSecondary)
-                Spacer()
-                Silkscreen(text: verdictLabel, color: DS.Color.copper)
-                if let group = runs.first?.group {
-                    Button {
-                        withAnimation { RunLog.deleteGroup(group) }
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(DS.Font.caption)
+        Card {
+            VStack(alignment: .leading, spacing: DS.Space.base) {
+                HStack(spacing: DS.Space.snug) {
+                    Text(heading)
+                        .font(DS.Font.caption)
+                        .foregroundStyle(DS.Color.inkSecondary)
+                    Spacer()
+                    Eyebrow(text: verdictLabel, color: DS.Color.copper)
+                    if let group = runs.first?.group {
+                        Button {
+                            withAnimation { RunLog.deleteGroup(group) }
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(DS.Font.iconTiny)
+                                .foregroundStyle(DS.Color.inkSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Delete this comparison")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(DS.Color.inkSecondary)
-                    .help("Delete this comparison")
+                }
+
+                if let margin {
+                    Eyebrow(text: margin, color: DS.Color.copper)
+                } else if runs.count == 1 {
+                    Eyebrow(text: "running the next engine…", color: DS.Color.inkSecondary)
+                }
+
+                ForEach(Array(ranked.enumerated()), id: \.offset) { index, run in
+                    EngineRow(run: run, rank: index + 1, showRank: runs.count > 1)
                 }
             }
-            if let margin {
-                Silkscreen(text: margin, color: DS.Color.copper)
-            } else if runs.count == 1 {
-                Silkscreen(text: "running second engine…", color: DS.Color.inkSecondary)
-            }
-
-            ForEach(Array(ranked.enumerated()), id: \.offset) { index, run in
-                EngineRow(run: run, rank: index + 1, showRank: runs.count > 1)
-            }
+            .padding(DS.Space.roomy)
         }
-        .padding(DS.Space.roomy)
-        .background(BrushedPanel())
+    }
+
+    private var heading: String {
+        guard let first = runs.first else { return "" }
+        let time = first.date.formatted(date: .omitted, time: .standard)
+        return "\(time) · held \(first.audioSeconds.formatted(.number.precision(.fractionLength(1))))s"
     }
 }
 
@@ -189,13 +171,13 @@ private struct EngineRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.tight) {
             HStack(alignment: .firstTextBaseline) {
-                Silkscreen(
+                Eyebrow(
                     text: run.engine + (isWinner ? " · fastest" : ""),
                     color: isWinner ? DS.Color.copper : DS.Color.inkSecondary
                 )
                 Spacer()
                 Text("\(run.processSeconds, format: .number.precision(.fractionLength(2)))s")
-                    .font(isWinner ? DS.Font.counterLarge : DS.Font.counter)
+                    .font(DS.Font.counter)
                     .foregroundStyle(isWinner ? DS.Color.copper : DS.Color.ink)
             }
             Text("\(run.realtimeFactor, format: .number.precision(.fractionLength(0)))× realtime · \(run.characters) chars")
@@ -215,21 +197,22 @@ private struct SingleCard: View {
     let run: DictationRun
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DS.Space.snug) {
-            HStack {
-                Silkscreen(text: run.engine)
-                Spacer()
-                Text("\(run.processSeconds, format: .number.precision(.fractionLength(2)))s")
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.inkSecondary)
+        Card {
+            VStack(alignment: .leading, spacing: DS.Space.snug) {
+                HStack {
+                    Eyebrow(text: run.engine)
+                    Spacer()
+                    Text("\(run.processSeconds, format: .number.precision(.fractionLength(2)))s")
+                        .font(DS.Font.counter)
+                        .foregroundStyle(DS.Color.inkSecondary)
+                }
+                Text(run.text)
+                    .font(DS.Font.body)
+                    .foregroundStyle(DS.Color.ink)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(run.text)
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.ink)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            .padding(DS.Space.base)
         }
-        .padding(DS.Space.base)
-        .background(BrushedPanel())
     }
 }

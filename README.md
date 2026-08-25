@@ -71,11 +71,12 @@ cloud code -> Claude Code
 
 ### History and comparison
 
-- Searchable transcription list with copy, delete, and Teach on each row.
+- Transcription list grouped by the day you said it, searchable, with copy, delete and
+  Teach on each row.
 - Correction badges when a dictionary rule fired, so you can see whether a rule is
   earning its place.
-- **Activity.** Words dictated per day as a year heatmap (violet phosphor density) and a
-  seven-day bar chart, plus a consecutive-day streak. Compare-mode engine rows for one
+- **Activity.** Words dictated per day as a year heatmap (violet density, sized to the
+  window) and a seven-day bar chart with a baseline, plus a consecutive-day streak. Compare-mode engine rows for one
   recording count once. Lives on the Activity tab; today's count and the streak sit in the
   header on every tab.
 - Dedicated **Engine comparison** window (⌘D from the menu bar) for side-by-side runs.
@@ -174,9 +175,14 @@ The first Apple run for a locale may pause while the OS installs speech assets.
 
 ## Look
 
-Violet limestone chrome, a deep **aubergine phosphor page** with lavender type where
-transcripts live, and copper for selection. Red is recording and nothing else. The compact
-HUD uses the same phosphor glass and never takes focus.
+A copy desk for speech. Violet limestone chrome around a **page** where transcripts live —
+warm paper in light appearance, aubergine phosphor in dark — with the words themselves set
+in a serif. Copper marks selection. Red is recording and nothing else.
+
+The window has no title bar: one bar carries the transport, the level, the clock, the state
+and the hold key, and the traffic lights sit in it. ⌘1 / ⌘2 / ⌘3 switch sections, ⌘F focuses
+the search field, and the section you were on is remembered across launches. The compact HUD
+uses the same page surface and never takes focus.
 
 ---
 
